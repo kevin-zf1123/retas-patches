@@ -2,7 +2,7 @@
 
 [中文](README.zh-CN.md) · [English](README.md) · [日本語](README.ja.md)
 
-The patch extends **Light Table → Alignment → Move image to middle position** with a progress dialog. It operates on two unmirrored 2D references. You can align them manually or pick four corresponding points on the drawing canvas. The active drawing remains in its original coordinates.
+The patch extends **Light Table → Alignment → Move image to middle position**. Once two key drawings are aligned, it distributes their relative rotation, scale and translation according to the chosen inbetween fraction. Both references meet at the inbetween position while the active drawing stays in place. Use two unmirrored 2D references. You can align them manually with the light-table tools or speed up alignment by picking the same two features on each drawing.
 
 ## Install and use
 
