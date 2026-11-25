@@ -63,5 +63,6 @@ with tempfile.TemporaryDirectory() as tmp:
 
 with zipfile.ZipFile(out/'Stylos-Inbetween-x86.zip','w',compression=zipfile.ZIP_DEFLATED) as package:
     package.write(out/'StylosInbetween.exe','StylosInbetween.exe')
+    package.write(src.parents[1]/'LICENSE','LICENSE')
     for guide in ('README.md','README.zh-CN.md','README.ja.md'):
         package.write(src/guide,guide)
