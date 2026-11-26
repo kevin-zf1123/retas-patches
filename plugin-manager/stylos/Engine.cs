@@ -5,6 +5,7 @@ using System.Linq;
 using System.Diagnostics;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using Retas.DevKit;
 using System.Security.Cryptography;
 using System.Text;
@@ -60,7 +61,7 @@ internal sealed partial class Engine {
         if(!File.Exists(exe))throw new IOException("请选择包含 Stylos.exe 的目录。");
         paths=new Dictionary<string,string>{{"exe",exe},{"profile",profile},{"state",Path.Combine(Store,"state.json")},{"layout",Path.Combine(Store,"layout.json")},{"input",Path.Combine(Store,"input.ini")},{"manager-hash",Path.Combine(Store,"manager.sha256")}};
         foreach(var plugin in Catalog.plugins)paths["package-"+plugin.id]=Path.Combine(Store,"packages",plugin.id+".zip");
-        foreach(string f in new[]{"StylosPluginManager.exe","StylosCanvasFilter.dll","MotionRender.dll","StylosRenderA.exe","StylosRenderB.exe","wintab32.dll","StylosInk.dll","Stylos-Wacom.cmd"})paths[f]=Path.Combine(Dir,f);
+        foreach(string f in new[]{"StylosPluginManager.exe","StylosCanvasFilter.dll","MotionRender.dll","StylosRender64.exe","StylosRenderA.exe","StylosRenderB.exe","wintab32.dll","StylosInk.dll","Stylos-Wacom.cmd"})paths[f]=Path.Combine(Dir,f);
     }
     public static byte[] Resource(string n){using(var s=Assembly.GetExecutingAssembly().GetManifestResourceStream(n))using(var m=new MemoryStream()){if(s==null)throw new IOException("缺少资源 "+n);s.CopyTo(m);return m.ToArray();}}
     byte[] Asset(string n){if(!assets.ContainsKey(n))assets[n]=Resource(n);return assets[n];}
@@ -87,11 +88,21 @@ internal sealed partial class Engine {
         }
         throw new IOException("目录中的构建缺少已知转换："+from+" → "+target);
     }
+    [DllImport("kernel32.dll",SetLastError=true)]
+    static extern IntPtr OpenProcess(uint access,bool inherit,int pid);
+    [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true)]
+    static extern bool QueryFullProcessImageName(IntPtr process,uint flags,StringBuilder path,ref int length);
+    [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr handle);
     public bool Running(){
-        foreach(string name in new[]{"Stylos","StylosRenderA","StylosRenderB"})
+        foreach(string name in new[]{"Stylos","StylosRenderA","StylosRenderB","StylosRender64"})
             foreach(var p in Process.GetProcessesByName(name))using(p){
-                try{if(String.Equals(Path.GetDirectoryName(p.MainModule.FileName),Dir,StringComparison.OrdinalIgnoreCase))return true;}
-                catch(InvalidOperationException){}
+                var handle=OpenProcess(0x1000,false,p.Id); // PROCESS_QUERY_LIMITED_INFORMATION also works across bitness.
+                if(handle==IntPtr.Zero)continue;
+                try{
+                    int length=32768;var path=new StringBuilder(length);
+                    if(QueryFullProcessImageName(handle,0,path,ref length)&&
+                       String.Equals(Path.GetDirectoryName(path.ToString()),Dir,StringComparison.OrdinalIgnoreCase))return true;
+                }finally{CloseHandle(handle);}
             }
         return false;
     }
@@ -116,7 +127,7 @@ internal sealed partial class Engine {
                 v0=prior.ContainsKey("host") && Equals(prior["host"],hostHash);
             }
             foreach(var p in Catalog.plugins)
-                if(v0 && (recorded&p.bit)!=0)s.sources[p.id]=p.v0Sha256;
+                if(v0 && p.v0Sha256!=null && (recorded&p.bit)!=0)s.sources[p.id]=p.v0Sha256;
         }
         foreach(var p in Catalog.plugins){
             if((s.installed&p.bit)==0){s.sources.Remove(p.id);continue;}
@@ -158,6 +169,7 @@ internal sealed partial class Engine {
                 }
             }
         }
+        if(String.IsNullOrEmpty(source))throw new InvalidDataException("未登记的组件版本："+id);
         var result=Catalog.plugins.Single(p=>p.id==id).Copy();
         result.importedHash=source;
         return result;
@@ -215,7 +227,7 @@ internal sealed partial class Engine {
             if(Running())throw new IOException("请先退出该目录的 Stylos 和渲染进程，然后应用。");
             Restore();
             if(s.revision!=null && s.revision!=Digest(paths["state"]))throw new IOException("插件状态已经改变，请刷新后重试。");
-            if((s.enabled&~s.installed)!=0 || (s.installed&~255)!=0 || (s.enabled&48)==48)throw new IOException("组件状态冲突。");
+            if((s.enabled&~s.installed)!=0 || (s.installed&~Catalog.plugins.Sum(p=>p.bit))!=0 || (s.enabled&48)==48)throw new IOException("组件状态冲突。");
             byte[] oldExe=File.ReadAllBytes(exe);HostState current;
             if(!Catalog.hosts.TryGetValue(Hash(oldExe),out current))throw new IOException("未识别主程序。");
             string target;
@@ -223,7 +235,11 @@ internal sealed partial class Engine {
             byte[] basis=Delta(oldExe,current.family);
             var desired=new Dictionary<string,byte[]>();
             desired["StylosCanvasFilter.dll"]=Asset("filter");
-            var workers=(s.enabled&2)!=0?Catalog.workers[current.family+":"+(s.enabled&3)]:null;
+            var motion=Catalog.plugins.Single(p=>p.id=="motion-check");
+            bool motionEnabled=(s.enabled&motion.bit)!=0;
+            string motionVersion=s.Label(motion);
+            bool standalone=motionEnabled && motionVersion==motion.version;
+            var workers=motionEnabled && !standalone?Catalog.workers[current.family+":"+(s.enabled&3)]:null;
             var layout=new Dictionary<string,PatchRegion[]>();
             PatchRegion[] regions;
             foreach(string k in new[]{"StylosRenderA.exe","StylosRenderB.exe"}){
@@ -231,8 +247,9 @@ internal sealed partial class Engine {
                 desired[k]=Layouts.Build(basis,k,s.enabled,workers[k],out regions);
                 layout[k]=regions;
             }
-            var motion=Catalog.plugins.Single(p=>p.id=="motion-check");
-            desired["MotionRender.dll"]=workers==null?null:Asset(s.Label(motion)==motion.version?"motion":"motion-previous");
+            string engine=standalone?"motion":motionVersion=="0.1.1"?"motion-0.1.1":"motion-previous";
+            desired["MotionRender.dll"]=motionEnabled?Asset(engine):null;
+            desired["StylosRender64.exe"]=standalone?Asset("renderer64"):null;
             int provider=s.enabled&48;
             var existingProvider=Digest(paths["wintab32.dll"]);
             if(provider!=0 || Catalog.known["native"].Contains(existingProvider) || Catalog.known["inktab"].Contains(existingProvider)){

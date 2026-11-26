@@ -1,15 +1,13 @@
-# 运动检查、后台预渲染和帧缓存
+# 运动检查与预渲染
 
-适用于 Windows x86 Stylos 2.6.0（RETAS STUDIO 6.6.0 中文发行版）。本包合并之前的首轮透明块优化、多线程蒙版合成、空闲预渲染与逐帧无损磁盘缓存。运行时在本机生成两份专用渲染进程；包内不含 Stylos 主程序。此前的性能实验和单阶段安装包已由完整版取代。
+适用于 64 位 Windows 或 macOS CrossOver 中运行的 32 位 Stylos 2.6.0。安装管理器后导入 `Stylos-Motion-Check-x86.zip`，保存画稿、退出 Stylos 并应用更改。
 
-将 Stylos-Motion-Check-x86.zip 导入管理器，然后应用更改。启用时管理器按本机基线生成主程序和两个 worker，停用时一并回收 worker。
+打开已保存的摄影表后，`MotionRender.dll` 在空闲时启动一个无界面的 `StylosRender64.exe`。渲染器读取 SXF、MN6、CF06、画稿和动检设置，按配置的线程数合成不同曝光（自动模式最多四个线程），将无损帧写入本机缓存。相同的持帧共用一个合成结果。保存工程或恢复操作时调度器可取消当前工作。前台 Stylos 负责交互、播放和声音，未保存的修改仍使用当前文档。
 
-0.1.1 修正了两个后台 Stylos 实例同时启动时争用临时启动程序的问题。请先升级插件管理器到 0.1.1，然后导入新版动检 ZIP 并应用。A 开始处理第一帧后，动检调度线程才启动 B；此后两个进程仍可并行工作。自动保存可以继续开启。
+帧缓存位于 `%LOCALAPPDATA%\StylosMotionRender`，按源文件内容、绘制偏好、实际播放设置和曝光索引匹配。调试时可将环境变量 `STYLOS_RENDER_TRACE` 指向可写日志文件，`start-worker`、`worker-exit`、`worker-hit` 分别表示启动、退出和前台命中预渲染帧。
 
-打开已保存的摄影表，空闲约两秒后后台准备缓存。已保存的画稿变化会使相关画面失效；播放时仍需计算尚未准备好的画面。缓存位于 %LOCALAPPDATA%\StylosMotionRender。前台缓存位图保留目标约 64 MiB，磁盘超过约 512 MiB 时回收至约 448 MiB。
+## 构建
 
-## 维护
+从仓库根目录运行 `cmake --build build --target motion-check`。32 位 DLL 使用 Zig 0.13.0，64 位渲染器使用 Visual Studio 2022 的 C++ 工具、CMake 与固定版本的压缩和图片库。两者装入同一组件包。[独立渲染器](worker/README.md)
 
-src/engine.c 与 scheduler.inc 是运行时源码。motion.asm 是首轮优化的汇编，stubs.asm 记录旧画布基线的渲染接口。plugin.json 声明主程序和 worker 的宿主 RVA 与补丁节。versions.json 保存构建参考镜像使用的历史差分和逐文件哈希。
-
-用 Zig 0.13.0 运行 `Build.ps1` 生成 MotionRender.dll。发布时将生成的 DLL 哈希登记到 versions.json，再将 DLL 通过 `build_manager.py --motion-dll` 传给打包器。Windows 上可用 `python verify_startup.py --zig <zig.exe>` 验证两路并行、短摄影表、保存中断和失败重试。
+在 **编辑 → 设置 → 环境设置 → 插件 → 动检预渲染** 调整线程数、空闲秒数、后台内存和磁盘缓存上限。可选择缓存的上级文件夹，程序会在其中使用 `StylosMotionRender` 子目录；设置页同时显示所在磁盘的可用空间。点外层 **确定** 后生效。

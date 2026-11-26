@@ -10,6 +10,7 @@ Python 客户端只依赖标准库；也可从 C/C++ 包含 retas.h 并使用 Se
 python retas-devkit/retas_client.py version
 python retas-devkit/retas_client.py zoom
 python retas-devkit/retas_client.py preferences --page midpoint
+python retas-devkit/retas_client.py preferences --page motion
 python retas-devkit/retas_client.py manager
 ```
 

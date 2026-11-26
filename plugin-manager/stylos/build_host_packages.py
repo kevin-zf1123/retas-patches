@@ -3,6 +3,8 @@ import argparse, base64, gzip, json, os, re, struct, subprocess, sys, tempfile
 from pathlib import Path
 REPO=Path(__file__).resolve().parents[2]
 sys.path[:0]=[str(REPO/'retas-devkit'),str(Path(__file__).resolve().parent)]
+sys.path.insert(0,str(REPO/'stylos/cross-over-mac'))
+import crossover_layout
 from patch_layout import LayoutCatalog
 from build_manager import build as build_manager
 from stylos260 import FILTER, require, digest, link_canvas
@@ -23,13 +25,29 @@ def transition(source, target):
     for pos,chunk in spans: record.extend(struct.pack('<ii',pos,len(chunk))+chunk)
     return record
 
+def build_filter(zig,work):
+    d=work;dll=d/FILTER;repo=REPO;manager=repo/'plugin-manager/stylos'
+    res=d/'pages.res'
+    subprocess.run([zig,'rc','/c65001','/fo',str(res),str(ROOT/'src/Pages.rc')],check=True)
+    subprocess.run([zig,'cc','-target','x86-windows-gnu','-march=pentium4','-O3','-ffp-contract=off','-shared','-s',
+        *[str(ROOT/'src'/n) for n in ['CanvasFilter.c','CanvasTile.S','Preferences.c','CanvasFilter.def']],
+        '-DSTYLOS_MANAGER_INPUT',str(repo/'better-canvas/CanvasInput.c'),
+        *[str(repo/'better-canvas'/n) for n in ['rotation-shortcuts/Rotation.c','rotation-shortcuts/StylosShortcuts.c','rotation-shortcuts/RotationCalls.S','zoom/mousewheel-zoom/MousewheelZoom.c','zoom/mousewheel-zoom/ZoomCalls.S']],
+        str(res),str(manager/'Bridge.c'),str(repo/'retas-devkit/StylosApi.c'),'-o',str(dll),'-luser32','-lcomctl32','-lgdi32','-lshell32','-lole32','-ladvapi32'],check=True)
+    # Keep the registered DLL hash stable across builds of identical sources with Zig 0.13.
+    runtime=bytearray(dll.read_bytes())
+    pe_offset,=struct.unpack_from('<I',runtime,60)
+    require(runtime[pe_offset:pe_offset+4]==b'PE\0\0','Expected linked PE runtime')
+    struct.pack_into('<I',runtime,pe_offset+8,0)
+    return runtime
+
 def main():
     cli=argparse.ArgumentParser(description=__doc__)
     cli.add_argument('--host',type=Path,action='append',required=True)
     cli.add_argument('--inbetween',type=Path,required=True,help='Released StylosInbetween.exe v0.1')
     cli.add_argument('--out',type=Path,required=True)
     sources=cli.add_mutually_exclusive_group()
-    sources.add_argument('--components',type=Path,help='Use the eight freshly built component ZIPs')
+    sources.add_argument('--components',type=Path,help='Use the freshly built component ZIPs')
     sources.add_argument('--motion-dll',type=Path,help='Use the rebuilt motion-check runtime')
     cli.add_argument('--zig',default='zig')
     cli.add_argument('--csc',default=str(Path(os.environ['WINDIR'])/'Microsoft.NET/Framework/v4.0.30319/csc.exe'))
@@ -42,16 +60,10 @@ def main():
         d=Path(temp);dll=d/FILTER
         repo=ROOT.parents[2]
         manager=repo/'plugin-manager/stylos'
-        res=d/'pages.res'
-        subprocess.run([args.zig,'rc','/c65001','/fo',str(res),str(ROOT/'src/Pages.rc')],check=True)
-        subprocess.run([args.zig,'cc','-target','x86-windows-gnu','-march=pentium4','-O3','-ffp-contract=off','-shared','-s',
-            *[str(ROOT/'src'/n) for n in ['CanvasFilter.c','CanvasTile.S','Preferences.c','CanvasFilter.def']],
-            '-DSTYLOS_MANAGER_INPUT',str(repo/'better-canvas/CanvasInput.c'),
-            *[str(repo/'better-canvas'/n) for n in ['rotation-shortcuts/Rotation.c','rotation-shortcuts/StylosShortcuts.c','rotation-shortcuts/RotationCalls.S','zoom/mousewheel-zoom/MousewheelZoom.c','zoom/mousewheel-zoom/ZoomCalls.S']],
-            str(res),str(manager/'Bridge.c'),str(repo/'retas-devkit/StylosApi.c'),'-o',str(dll),'-luser32','-lcomctl32','-lgdi32'],check=True)
         def aligned(src,target):
             subprocess.run([str(align),str(src.resolve()),str(target)],check=True,stdout=subprocess.DEVNULL)
             require(target.is_file(),'Midpoint build failed')
+        mac_plugins=crossover_layout.assemble(args.zig,d)
         layouts=LayoutCatalog()
         inputs={digest(p.read_bytes()).hex():p for p in args.host}
         motion=json.loads((repo/'stylos/motion-check/versions.json').read_text())
@@ -85,9 +97,19 @@ def main():
                 info(artifact,root,flags);recipe(artifact,root)
             if not legacy and stage!='stage1':
                 for artifact,flags in [(mgr,mask),(mid,mask|8),(a,mask|4),(both,mask|12)]:
-                    key=f'{digest(root.read_bytes()).hex()}:{flags}'
-                    targets[key]=info(artifact,root,flags)
-                    layouts.add(root.read_bytes(),artifact.read_bytes(),flags)
+                    basis=root.read_bytes()
+                    for extra,image in crossover_layout.variants(artifact.read_bytes(),mac_plugins):
+                        selected=flags|extra
+                        family=digest(basis).hex()
+                        key=f'{family}:{selected}'
+                        result=digest(image).hex()
+                        targets[key]=result
+                        facts[result]={'family':family,'flags':selected}
+                        layouts.add(basis,image,selected)
+                        if extra:
+                            extended=directory/'crossover.exe'
+                            extended.write_bytes(image)
+                            recipe(extended,root)
                 if stage=='main':
                     group=f'{digest(root.read_bytes()).hex()}:{mask}'
                     workers[group]={}
@@ -100,16 +122,11 @@ def main():
                         workers[group][name]=spec['hash'].lower()
         assets=args.manager_assets or d/'assets'
         assets.mkdir(parents=True,exist_ok=True)
+        (assets/FILTER).write_bytes(build_filter(args.zig,d))
         layouts.save(assets/'layouts.gz')
         (assets/'recipes.gz').write_bytes(gzip.compress(struct.pack('<i',len(recipes))+b''.join(recipes.values()),mtime=0))
         (assets/'hosts.json').write_text(json.dumps({'hosts':facts,'targets':targets,'workers':workers},
                                                    separators=(',',':')),encoding='ascii')
-        # Keep the registered DLL hash stable across builds of identical sources with Zig 0.13.
-        runtime=bytearray(dll.read_bytes())
-        pe_offset,=struct.unpack_from('<I',runtime,60)
-        require(runtime[pe_offset:pe_offset+4]==b'PE\0\0','Expected linked PE runtime')
-        struct.pack_into('<I',runtime,pe_offset+8,0)
-        (assets/FILTER).write_bytes(runtime)
         build_manager(argparse.Namespace(assets=assets,out=out,csc=args.csc,motion_dll=args.motion_dll,components=args.components))
 
 if __name__=='__main__':main()

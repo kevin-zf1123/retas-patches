@@ -26,10 +26,17 @@ foreach(i RANGE 0 ${last})
         endif()
         set(runtime_dir "${CMAKE_CURRENT_BINARY_DIR}/runtime/${id}")
         set(runtime_sources "${src}/Build.ps1")
+        set(worker_output)
         if(id STREQUAL "motion-check")
             set(runtime_files "${runtime_dir}/MotionRender.dll")
+            set(worker_output "${runtime_dir}/StylosRender64.exe")
+            file(GLOB_RECURSE worker_sources CONFIGURE_DEPENDS "${src}/worker/*")
+            add_custom_command(OUTPUT "${worker_output}"
+                COMMAND "${Python3_EXECUTABLE}" "${src}/worker/build.py"
+                        --build "${CMAKE_CURRENT_BINARY_DIR}/render64" --out "${worker_output}"
+                DEPENDS ${worker_sources} "${src}/src/frame_cache.h" "${src}/src/render_settings.h" "${src}/src/cache_space.h" VERBATIM)
             list(APPEND runtime_sources "${src}/src/engine.c" "${src}/src/engine.h"
-                 "${src}/src/scheduler.inc" "${src}/versions.json")
+                 "${src}/src/scheduler.inc" "${src}/src/frame_cache.h" "${src}/src/render_settings.h" "${src}/src/cache_space.h" "${src}/versions.json")
         elseif(id STREQUAL "tablet-native")
             set(runtime_files "${runtime_dir}/wintab32.dll")
             list(APPEND runtime_sources "${src}/NativeWinTabCoordinates.c" "${src}/Stylos-Wacom.cmd")
@@ -45,6 +52,7 @@ foreach(i RANGE 0 ${last})
                     -OutputDirectory "${runtime_dir}"
             DEPENDS ${runtime_sources}
             VERBATIM)
+        list(APPEND runtime_files ${worker_output})
         set(runtime_args --runtime-dir "${runtime_dir}")
     endif()
     set(guide "${src}/README.md")

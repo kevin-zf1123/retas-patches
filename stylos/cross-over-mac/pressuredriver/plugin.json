@@ -1,0 +1,30 @@
+{
+  "schema": 2,
+  "host": "stylos-2.6.0-x86",
+  "id": "crossover-pressure",
+  "sites": [
+    {
+      "rva": "0x2c8770",
+      "size": 6,
+      "expected": "dd0560329d00"
+    }
+  ],
+  "segments": [
+    ".cxpress"
+  ],
+  "fixups": [
+    {
+      "region": "host",
+      "address": "0x2c8771",
+      "base": ".cxpress",
+      "factor": 1
+    },
+    {
+      "region": ".cxpress",
+      "address": "0x1",
+      "base": ".cxpress",
+      "factor": -1
+    }
+  ],
+  "version": "0.1.0"
+}

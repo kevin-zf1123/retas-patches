@@ -10,7 +10,7 @@
 
 ## 版本、更新与备份
 
-本版管理器和动检组件为 `0.1.1`，其余七项为 `0.1.0`。更新管理器后，导入新版动检 ZIP 并应用即可启用启动修复。版本列使用组件清单和安装记录。历史包也可按已知摘要识别，重新打包的组件可按清单导入。上一版地址映射管理器的八个发行包登记为 `v0`。从旧安装迁移时，管理器会核对已有安装记录、管理器校验记录和当前宿主的地址表，再为其中记录的组件标记 `v0`。更早的受支持补丁以及缺少版本依据的安装显示“无注册版本”。
+本版管理器和动检组件为 `0.2.0`，其余组件为 `0.1.0`。在 Mac 上使用 CrossOver 时，可单独安装[工具快捷键和起笔压力修复](../../stylos/cross-over-mac/README.md)。更新管理器后，导入新版动检 ZIP 并应用，即可使用独立 x64 渲染器，并在环境设置的“动检预渲染”页调整资源用量。版本列使用组件清单和安装记录。历史包也可按已知摘要识别，重新打包的组件可按清单导入。上一版地址映射管理器的八个发行包登记为 `v0`。从旧安装迁移时，管理器会核对已有安装记录、管理器校验记录和当前宿主的地址表，再为其中记录的组件标记 `v0`。更早的受支持补丁以及缺少版本依据的安装显示“无注册版本”。
 
 **从包更新管理器**和**从安装包安装**都接受单个新版管理器 ZIP。**在线检查更新**从本项目 GitHub 最新 Release 获取同名文件。两种更新都使用包内的产品标识和版本号选择适用的新版。首次从没有更新入口的旧管理器升级，仍需解压新版管理器到单独目录，运行后选择原 Stylos.exe。之后可以在管理器内更新。更新管理器会保留原有组件版本和启停状态。
 
@@ -37,9 +37,9 @@
 
 从源码构建管理器和全部组件的 CMake 命令见[根目录安装说明](../../README.md#build-yourself)。
 
-单独运行 build_host_packages.py 时，使用 --host 多次传入对应的本地参考基线、--inbetween 传入原 v0.1 安装器、--out 指定输出目录。传入 `--components <目录>` 可直接使用本次构建的八个组件 ZIP，将管理器 ZIP 写入输出目录。完整发行需要 versions.json 的各 base、stage1、main 镜像。该命令链接参考镜像。可用 --manager-assets 保存中间资源，之后使用 build_manager.py 的 --assets、--components 和 --out 重新打包。组件 ZIP 中的 plugin.json 与构建时的地址声明须一致。
+单独运行 build_host_packages.py 时，使用 --host 多次传入对应的本地参考基线、--inbetween 传入原 v0.1 安装器、--out 指定输出目录。传入 `--components <目录>` 可直接使用本次构建的十个组件 ZIP，将管理器 ZIP 写入输出目录。完整发行需要 versions.json 的各 base、stage1、main 镜像。该命令链接参考镜像。可用 --manager-assets 保存中间资源，之后使用 build_manager.py 的 --assets、--components 和 --out 重新打包。组件 ZIP 中的 plugin.json 与构建时的地址声明须一致。
 
-应用后，.stylos-plugins/layout.json 按 Stylos.exe 和各 worker 列出实际分配。该文件与安装状态在同一事务中写入或恢复。地址格式、固定入口和新补丁节的声明见 [DevKit 文档](../../retas-devkit/README.md)。
+应用后，.stylos-plugins/layout.json 列出 Stylos.exe 内各组件的实际地址。恢复旧版动检组件时，该文件也登记旧渲染进程的地址。该文件与安装状态在同一事务中写入或恢复。地址格式、固定入口和新补丁节的声明见 [DevKit 文档](../../retas-devkit/README.md)。
 
 verify_layout.ps1 使用 32 位 Windows PowerShell，传入解压的 -Manager、组件目录 -Packages 和原版文件数组 -Baseline。脚本在临时目录内重建目标并验证哈希、地址冲突、动检启停时的中割重定位、重复应用和卸载。可用 -LegacyPackages 验证上一版组件。
 

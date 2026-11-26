@@ -71,7 +71,7 @@ try {
         $e.Apply($s,$true)
         if (!(Test-Path -LiteralPath (Join-Path $dir 'StylosPluginManager.exe'))) {throw 'Setup failed'}
         foreach ($p in $catalog.plugins) {
-            if ($LegacyPackages -and $e.Import((Join-Path $LegacyPackages $p.package)).id -ne $p.id) {throw 'Legacy import failed'}
+            if ($LegacyPackages -and $p.v0Sha256 -and $e.Import((Join-Path $LegacyPackages $p.package)).id -ne $p.id) {throw 'Legacy import failed'}
             $component=$e.Import((Join-Path $Packages $p.package))
             if ($component.id -ne $p.id) {throw 'Component import failed'}
             if ($catalog.targets.ContainsKey($family+':'+($p.bit -band $catalog.hostMask))) {
@@ -96,6 +96,23 @@ try {
         if (!$oldMid -or !$newMid -or $oldMid.rva -eq $newMid.rva -or $after.images.'StylosRenderA.exe') {
             throw 'Worker removal or midpoint relocation failed'
         }
+        # Each Mac fix can move with the render layout and be enabled independently.
+        foreach ($region in '.cxkeys','.cxpress') {
+            $old = @($before.images.'Stylos.exe' | Where-Object region -eq $region)
+            $new = @($after.images.'Stylos.exe' | Where-Object region -eq $region)
+            if ($old.Count -ne 1 -or $new.Count -ne 1 -or $old[0].rva -eq $new[0].rva) {
+                throw "CrossOver section did not relocate: $region"
+            }
+        }
+        $keysPlugin=$catalog.plugins | Where-Object id -eq 'crossover-shortcuts'
+        $e.Edit($s,$keysPlugin,'disable')
+        $e.Apply($s,$false)
+        $single=Get-Content -Raw -LiteralPath $layoutFile | ConvertFrom-Json
+        if (($single.images.'Stylos.exe' | Where-Object region -eq '.cxkeys') -or
+            !($single.images.'Stylos.exe' | Where-Object region -eq '.cxpress')) {
+            throw 'Independent CrossOver plugin toggle failed'
+        }
+        $e.Edit($s,$keysPlugin,'enable')
         $e.Edit($s,$motion,'enable')
         $e.Apply($s,$false)
         $e.Apply($s,$false)
@@ -107,10 +124,15 @@ try {
         $e.Edit($s,$oldMotion,'install');$e.Apply($s,$false)
         $oldHash=(Get-FileHash -LiteralPath $motionPath).Hash
         if ($s.Label($motion) -ne '0.1.0' -or $oldHash -eq $fixed) {throw 'Motion rollback selected wrong runtime'}
+        if (!(Test-Path (Join-Path $dir 'StylosRenderA.exe')) -or (Test-Path (Join-Path $dir 'StylosRender64.exe'))) {throw 'Legacy renderer deployment failed'}
         $snapshot=Join-Path $dir 'old-motion.zip'
         $e.BackupPlugin($snapshot,$motion.id)
         $e.Edit($s,$e.Import((Join-Path $Packages $motion.package)),'install');$e.Apply($s,$false)
-        if ($s.Label($motion) -ne '0.1.1' -or (Get-FileHash -LiteralPath $motionPath).Hash -ne $fixed) {throw 'Motion upgrade failed'}
+        if ($s.Label($motion) -ne $motion.version -or (Get-FileHash -LiteralPath $motionPath).Hash -ne $fixed) {throw 'Motion upgrade failed'}
+        if (!(Test-Path (Join-Path $dir 'StylosRender64.exe')) -or (Test-Path (Join-Path $dir 'StylosRenderA.exe')) -or (Test-Path (Join-Path $dir 'StylosRenderB.exe'))) {throw 'Standalone renderer deployment failed'}
+        $priorPackage=$e.Import((Join-Path $PSScriptRoot 'releases/motion-check-0.1.1.zip'))
+        $e.Edit($s,$priorPackage,'install');$e.Apply($s,$false)
+        if ($s.Label($motion) -ne '0.1.1' -or (Get-FileHash $motionPath).Hash -ne '1C9FDF4B45655C167D142CFE8363AF302AE328B60910CD5B7D6A9C2676FBF708') {throw '0.1.1 rollback runtime mismatch'}
         $e.RestoreBackup($snapshot)
         $s=$e.Read()
         if ($s.Label($motion) -ne '0.1.0' -or (Get-FileHash -LiteralPath $motionPath).Hash -ne $oldHash) {throw 'Motion backup restored wrong DLL'}

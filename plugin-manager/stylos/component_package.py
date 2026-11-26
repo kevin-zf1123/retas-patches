@@ -9,7 +9,7 @@ import zipfile
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 RUNTIME_MEMBERS = {
-    'motion-check': {'motion': 'MotionRender.dll'},
+    'motion-check': {'motion': 'MotionRender.dll', 'renderer64': 'StylosRender64.exe'},
     'tablet-native': {'native': 'wintab32.dll', 'wacom': 'Stylos-Wacom.cmd'},
     'windows-ink': {'inktab': 'wintab32.dll', 'ink': 'StylosInk.dll'},
 }
@@ -21,6 +21,8 @@ def component_bytes(plugin, runtime):
     members = dict(runtime)
     for name, path in [('plugin.json', manifest), ('README.md', guide), ('LICENSE', ROOT / 'LICENSE')]:
         members[name] = path.read_bytes().replace(b'\r\n', b'\n')
+    if plugin['id'] == 'motion-check':
+        members['THIRD-PARTY.txt'] = (manifest.parent / 'worker/THIRD-PARTY.txt').read_bytes().replace(b'\r\n', b'\n')
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, 'w') as archive:
         for name, content in sorted(members.items()):

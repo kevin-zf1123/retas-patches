@@ -46,13 +46,16 @@ static void launch(HWND w){
     if(CreateProcessW(path,NULL,NULL,NULL,FALSE,0,NULL,NULL,&si,&pi)){CloseHandle(pi.hThread);CloseHandle(pi.hProcess);}
     else MessageBoxW(w,L"请重新安装 Stylos 插件管理器。",L"插件管理器",MB_ICONERROR);
 }
+HHOOK WatchMotionPreferences(void);
 static LRESULT CALLBACK frame_proc(HWND w,UINT msg,WPARAM wp,LPARAM lp,UINT_PTR id,DWORD_PTR data){
     LRESULT api;
     if(RetasDispatch(w,msg,wp,lp,exists,&api))return api;
     if(exists && msg==WM_COMMAND && !lp && LOWORD(wp)==Manager){launch(w);return 0;}
     if(exists && (msg==WM_INITMENU || (msg==WM_COMMAND && LOWORD(wp)==40049)))menu(w);
     if(msg==WM_NCDESTROY){RemoveWindowSubclass(w,frame_proc,id);frame=NULL;currentMenu=NULL;}
+    HHOOK dialog=(msg==WM_COMMAND && !lp && LOWORD(wp)==Preferences)?WatchMotionPreferences():NULL;
     LRESULT result=DefSubclassProc(w,msg,wp,lp);
+    if(dialog)UnhookWindowsHookEx(dialog);
     if(msg==WM_INITMENUPOPUP)EnableMenuItem((HMENU)wp,Manager,MF_BYCOMMAND|MF_ENABLED);
     return result;
 }

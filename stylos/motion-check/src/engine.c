@@ -21,63 +21,38 @@ typedef void(THIS *BmpCreate)(void*,HWND,int,int,int,int,int);
 typedef void(THIS *DestroyBitmap)(void*);
 typedef void(THIS *Dispose)(void*,int);
 typedef void*(THIS *Probe)(void*,int,int,int,int,int,int,int,void*);
-typedef struct { HCRYPTPROV provider; HCRYPTHASH hash; } Digest;
-static BOOL hash_init(Digest* d){
-    memset(d,0,sizeof(*d));
-    if(!CryptAcquireContextW(&d->provider,0,0,PROV_RSA_AES,CRYPT_VERIFYCONTEXT))return FALSE;
-    if(CryptCreateHash(d->provider,CALG_SHA_256,0,0,&d->hash))return TRUE;
-    CryptReleaseContext(d->provider,0);d->provider=0;return FALSE;
-}
-static BOOL add(Digest* d,const void* p,DWORD n){return CryptHashData(d->hash,p,n,0);}
-static BOOL finish(Digest* d,BYTE out[32]){
-    DWORD n=32;BOOL ok=CryptGetHashParam(d->hash,HP_HASHVAL,out,&n,0);
-    CryptDestroyHash(d->hash);CryptReleaseContext(d->provider,0);memset(d,0,sizeof(*d));return ok;
-}
-static BOOL sha(const void* p,DWORD n,BYTE out[32]){
-    Digest d;if(!hash_init(&d))return FALSE;BOOL ok=add(&d,p,n);return finish(&d,out)&&ok;
-}
+#include "frame_cache.h"
+#include "cache_space.h"
 static BOOL native_path(void* obj,wchar_t path[MAX_PATH]){
     char raw[8192]={0};CALLPTR(0x9cfe94,PathText)(obj,raw);
     return raw[0] && MultiByteToWideChar(CP_ACP,0,raw,-1,path,MAX_PATH)>0;
 }
-static BOOL file_digest(const wchar_t* path,BYTE out[32]){
-    HANDLE f=CreateFileW(path,GENERIC_READ,FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE,0,OPEN_EXISTING,FILE_FLAG_SEQUENTIAL_SCAN,0);
-    if(f==INVALID_HANDLE_VALUE)return FALSE;
-    LARGE_INTEGER len;Digest d;
-    if(!GetFileSizeEx(f,&len)||len.QuadPart>256LL*1024*1024||!hash_init(&d)){CloseHandle(f);return FALSE;}
-    BYTE b[32768];DWORD n;BOOL ok=TRUE;LONGLONG total=0;
-    do{if(!ReadFile(f,b,sizeof(b),&n,0)||!add(&d,b,n)){ok=FALSE;break;}total+=n;}while(n);
-    CloseHandle(f);return finish(&d,out)&&ok&&total==len.QuadPart;
-}
 static BOOL isext(const wchar_t* p,const wchar_t* ext){const wchar_t* e=wcsrchr(p,L'.');return e&&!_wcsicmp(e,ext);}
+EXPORT int __cdecl MotionSettingsVersion(void){return 1;}
 static BOOL cache_dir(wchar_t dir[MAX_PATH]){
-    DWORD n=GetEnvironmentVariableW(L"LOCALAPPDATA",dir,MAX_PATH);
-    if(!n||n>MAX_PATH-45)return FALSE;
-    wcscat(dir,L"\\StylosMotionRender");return CreateDirectoryW(dir,0)||GetLastError()==ERROR_ALREADY_EXISTS;
-}
-static int lane(void){
-    static int saved=-2;if(saved!=-2)return saved;
-    wchar_t path[MAX_PATH];GetModuleFileNameW(0,path,MAX_PATH);
-    const wchar_t* n=wcsrchr(path,L'\\');n=n?n+1:path;
-    return saved=!_wcsicmp(n,L"StylosRenderA.exe")?0:!_wcsicmp(n,L"StylosRenderB.exe")?1:-1;
+    RenderSettings config=render_settings();
+    return ensure_render_cache(&config,dir);
 }
 static void trace(const char* type,int frame,int value){
     wchar_t path[MAX_PATH];if(!GetEnvironmentVariableW(L"STYLOS_RENDER_TRACE",path,MAX_PATH))return;
     HANDLE f=CreateFileW(path,FILE_APPEND_DATA,FILE_SHARE_READ|FILE_SHARE_WRITE,0,OPEN_ALWAYS,0,0);
-    if(f==INVALID_HANDLE_VALUE)return;char line[112];int n=snprintf(line,sizeof(line),"%lu %d %s %d %d\r\n",(unsigned long)GetCurrentProcessId(),lane(),type,frame,value);
+    if(f==INVALID_HANDLE_VALUE)return;char line[112];int n=snprintf(line,sizeof(line),"%lu %d %s %d %d\r\n",(unsigned long)GetCurrentProcessId(),-1,type,frame,value);
     DWORD wrote;WriteFile(f,line,n,&wrote,0);CloseHandle(f);
 }
-EXPORT int __cdecl Background(void){return lane()>=0;}
+EXPORT int __cdecl Background(void){return 0;}
+static BOOL wine_runtime(void){
+    return GetProcAddress(GetModuleHandleW(L"ntdll.dll"),"wine_get_version")!=NULL;
+}
 #include "scheduler.inc"
 typedef struct {wchar_t path[MAX_PATH];BYTE id[32];} Dependency;
 typedef struct {
-    Digest key;BOOL probing,valid;unsigned count;Dependency deps[64];
+    Digest key;BOOL probing,valid,missing;unsigned count;Dependency deps[MaxFrameInputs];
     wchar_t file[MAX_PATH];int w,h,frame;
 } Frame;
 static __thread Frame current;
 static void append_file(const wchar_t* path){
     Frame* f=&current;if(!f->valid)return;
-    if(f->count>=64){f->valid=FALSE;return;}
+    if(f->count>=MaxFrameInputs){f->valid=FALSE;return;}
     Dependency* d=f->deps+f->count++;
     wcscpy(d->path,path);f->valid=file_digest(path,d->id)&&add(&f->key,d->id,32);
 }
@@ -85,7 +60,6 @@ typedef struct OpenCel {void* doc;struct OpenCel* next;} OpenCel;
 static __thread OpenCel* cel_list;
 static __thread void* rendered_doc;
 EXPORT void __cdecl TrackCel(void* doc){
-    if(lane()>=0)return;
     OpenCel* n=malloc(sizeof(*n));if(n){n->doc=doc;n->next=cel_list;cel_list=n;}
 }
 EXPORT void __cdecl UntrackCel(void* doc){
@@ -103,7 +77,7 @@ static void* dirty_cel(const wchar_t* path,void* except){
 EXPORT void* __cdecl RenderCel(void* temporary,void* args){
     typedef void*(THIS *Render)(void*,void*);
     wchar_t path[MAX_PATH];void* live=NULL;
-    if(lane()<0&&native_path((char*)temporary+16,path))live=dirty_cel(path,temporary);
+    if(native_path((char*)temporary+16,path))live=dirty_cel(path,temporary);
     void* source=live?live:temporary;
     if(live){current.valid=FALSE;trace("unsaved",current.frame,0);}
     void* pixels=((Render)0x440a10)(source,args);
@@ -113,33 +87,46 @@ EXPORT void* __cdecl CelGeometry(void){return (char*)rendered_doc+0x80;}
 EXPORT int __cdecl DependencyPath(void* frame){
     if(!current.probing)return 0;
     MEMORY_BASIC_INFORMATION site,ours;if(!VirtualQuery(PTR(frame,4),&site,sizeof(site))||!VirtualQuery((void*)DependencyPath,&ours,sizeof(ours))||site.AllocationBase!=ours.AllocationBase)return 0;
-    wchar_t path[MAX_PATH];if(!native_path((char*)frame-0x74,path)||!isext(path,L".dga"))current.valid=FALSE;
+    wchar_t path[MAX_PATH];if(!native_path((char*)frame-0x74,path))current.valid=FALSE;
     else if(dirty_cel(path,NULL))current.valid=FALSE;else append_file(path);
     return 1;
 }
-EXPORT void __cdecl MissingSource(void){if(current.probing)current.valid=FALSE;}
+EXPORT void __cdecl MissingSource(void){if(current.probing)current.missing=TRUE;}
 static BOOL unchanged(void){
     BYTE h[32];for(unsigned n=0;n<current.count;n++)
         if(!file_digest(current.deps[n].path,h)||memcmp(h,current.deps[n].id,32))return FALSE;
     return TRUE;
 }
-typedef struct {DWORD magic,w,h,size;BYTE digest[32];} Header;
+
+// Stylos ships this cdecl zlib ABI. Wine's cabinet.dll exports compression stubs.
+typedef int (__cdecl *ZlibCompress)(BYTE*,DWORD*,const BYTE*,DWORD,int);
+typedef int (__cdecl *ZlibExpand)(BYTE*,DWORD*,const BYTE*,DWORD);
+static FARPROC host_zlib(const char* name){
+    HMODULE zlib=GetModuleHandleW(L"zlib.dll");
+    return zlib?GetProcAddress(zlib,name):NULL;
+}
 static void bitmap_info(BITMAPINFO* bi,int w,int h){
     memset(bi,0,sizeof(*bi));bi->bmiHeader.biSize=sizeof(BITMAPINFOHEADER);bi->bmiHeader.biWidth=w;
     bi->bmiHeader.biHeight=-h;bi->bmiHeader.biPlanes=1;bi->bmiHeader.biBitCount=32;
 }
 static BOOL getall(HANDLE f,void* p,DWORD n){DWORD r=0;return ReadFile(f,p,n,&r,0)&&r==n;}
-static BOOL putall(HANDLE f,const void* p,DWORD n){DWORD r=0;return WriteFile(f,p,n,&r,0)&&r==n;}
 static BOOL load_frame(void* bp,void* bitmap){
     Frame* f=&current;DWORD size=(DWORD)f->w*f->h*4;
     HANDLE fd=CreateFileW(f->file,GENERIC_READ,FILE_SHARE_READ|FILE_SHARE_DELETE,0,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,0);
     if(fd==INVALID_HANDLE_VALUE)return FALSE;
     Header h;LARGE_INTEGER fileSize;BYTE *blob=0,*pixels=0;BOOL ok=FALSE;DECOMPRESSOR_HANDLE z=0;
-    if(!GetFileSizeEx(fd,&fileSize)||!getall(fd,&h,sizeof(h))||h.magic!=0x33525053||h.w!=(DWORD)f->w||h.h!=(DWORD)f->h||!h.size||h.size>size+65536||fileSize.QuadPart!=sizeof(h)+h.size)goto done;
-    blob=malloc(h.size);pixels=malloc(size);if(!blob||!pixels||!getall(fd,blob,h.size)||!CreateDecompressor(COMPRESS_ALGORITHM_XPRESS_HUFF,0,&z))goto done;
-    SIZE_T length;BYTE sum[32];
-    if(!Decompress(z,blob,h.size,pixels,size,&length)||length!=size||!sha(pixels,size,sum)||memcmp(sum,h.digest,32))goto done;
-    if(lane()>=0){ok=TRUE;goto done;} // Validated warm frame; workers never have to display it.
+    if(!GetFileSizeEx(fd,&fileSize)||!getall(fd,&h,sizeof(h))||(h.magic!=FrameXpress&&h.magic!=FrameZlib)||h.w!=(DWORD)f->w||h.h!=(DWORD)f->h||!h.size||h.size>size+65536||fileSize.QuadPart!=sizeof(h)+h.size)goto done;
+    blob=malloc(h.size);pixels=malloc(size);if(!blob||!pixels||!getall(fd,blob,h.size))goto done;
+    if(h.magic==FrameZlib){
+        ZlibExpand expand=(ZlibExpand)host_zlib("uncompress");
+        DWORD length=size;
+        if(!expand||expand(pixels,&length,blob,h.size)!=0||length!=size)goto done;
+    }else{
+        SIZE_T length;
+        if(wine_runtime()||!CreateDecompressor(COMPRESS_ALGORITHM_XPRESS_HUFF,0,&z)
+           ||!Decompress(z,blob,h.size,pixels,size,&length)||length!=size)goto done;
+    }
+    BYTE sum[32];if(!sha(pixels,size,sum)||memcmp(sum,h.digest,32))goto done;
     HWND window=PTR(PTR(bp,-0x1c),8);
     CALLPTR(0x9d011c,BmpCreate)(bitmap,window,f->w,f->h,32,1,0);
     HBITMAP bm=PTR(bitmap,0x10);
@@ -157,7 +144,7 @@ EXPORT void __cdecl NewPlayback(void){live_count=0;}
 static void track_slot(void* bp,void* bitmap,int w,int h){
     if(slot_base!=PTR(bp,-0x78)){slot_base=PTR(bp,-0x78);live_count=0;}
     if(!PTR(bitmap,0x10))return;
-    unsigned budget=lane()<0?64u*1024u*1024u:16u*1024u*1024u;
+    unsigned budget=64u*1024u*1024u;
     unsigned max=budget/((unsigned)w*h*4);if(max<2)max=2;if(max>128)max=128;
     for(unsigned i=0;i<live_count;i++)if(live_slots[i]==bitmap)return;
     if(live_count>=max){
@@ -166,17 +153,32 @@ static void track_slot(void* bp,void* bitmap,int w,int h){
     }
     live_slots[live_count++]=bitmap;
 }
-EXPORT int __cdecl BeginFrame(void* bp,void* bitmap){
-    Frame* f=&current;f->probing=FALSE;f->valid=FALSE;f->file[0]=0;f->count=0;int frame=V(bp,-0x14);
-    int slot=(int)(((intptr_t)bitmap-(intptr_t)PTR(bp,-0x78))/40);
-    if(lane()>=0){
-        signal_render_ready();
-        if((slot&1)!=lane())return 2;
+static BOOL representative_frame(const wchar_t* dir,const BYTE scene_hash[32],const BYTE prefs[32],int frame,DWORD* representative){
+    static __thread wchar_t previous[72];
+    static __thread DWORD frames[6000],count;
+    wchar_t name[72],path[MAX_PATH];
+    if(frame<0||!worker_map_name(scene_hash,prefs,name))return FALSE;
+    if(wcscmp(previous,name)){
+        if(swprintf(path,MAX_PATH,L"%ls\\%ls",dir,name)<0)return FALSE;
+        HANDLE file=CreateFileW(path,GENERIC_READ,FILE_SHARE_READ|FILE_SHARE_DELETE,NULL,OPEN_EXISTING,0,NULL);
+        if(file==INVALID_HANDLE_VALUE)return FALSE;
+        DWORD size=GetFileSize(file,NULL);BYTE stored[32],actual[32];
+        BOOL ok=size>32&&size<=32+sizeof(frames)&&(size-32)%4==0&&getall(file,stored,32)&&getall(file,frames,size-32)
+              &&sha(frames,size-32,actual)&&!memcmp(stored,actual,32);
+        CloseHandle(file);count=0;previous[0]=0;
+        if(!ok)return FALSE;
+        count=(size-32)/4;wcscpy(previous,name);
     }
+    if((unsigned)frame>=count||frames[frame]>(unsigned)frame)return FALSE;
+    *representative=frames[frame];return TRUE;
+}
+EXPORT int __cdecl BeginFrame(void* bp,void* bitmap){
+    Frame* f=&current;f->probing=FALSE;f->valid=FALSE;f->missing=FALSE;f->file[0]=0;f->count=0;int frame=V(bp,-0x14);
+    int slot=(int)(((intptr_t)bitmap-(intptr_t)PTR(bp,-0x78))/40);
     void* doc=PTR(bp,8);
     wchar_t path[MAX_PATH],dir[MAX_PATH];if(V(doc,0x20)>0||!native_path((char*)doc+16,path)||!isext(path,L".sxf")||!cache_dir(dir))return 0;
     f->w=V(bp,-0x2c);f->h=V(bp,-0x28);f->frame=frame;
-    if(f->w<=0||f->h<=0||(uint64_t)f->w*f->h>12*1024*1024 || !hash_init(&f->key))return 0;
+    if(f->w<=0||f->h<=0||(uint64_t)f->w*f->h>64*1024*1024 || !hash_init(&f->key))return 0;
     f->valid=TRUE;
     append_file(path);
     // Include the saved scene description and image-affecting drawing preferences.
@@ -205,28 +207,45 @@ EXPORT int __cdecl BeginFrame(void* bp,void* bitmap){
     BYTE key[32];if(!finish(&f->key,key)||!f->valid||f->count<2)return 0;
     wchar_t hex[65];for(int i=0;i<32;i++)swprintf(hex+i*2,3,L"%02x",key[i]);
     if(swprintf(f->file,MAX_PATH,L"%ls\\%ls.frm",dir,hex)<0){f->valid=FALSE;return 0;}
-    if(load_frame(bp,bitmap)){if(lane()<0)track_slot(bp,bitmap,f->w,f->h);trace("hit",frame,slot);return lane()<0?1:2;}
+    if(!f->missing && load_frame(bp,bitmap)){track_slot(bp,bitmap,f->w,f->h);trace("hit",frame,slot);return 1;}
+    wchar_t name[72],original[MAX_PATH];
+    {
+        BYTE prefs[32],inputs[MaxFrameInputs][32];double scale;
+        memcpy(&scale,(char*)bp-0xf8,sizeof(scale));
+        for(unsigned i=0;i<f->count;i++)memcpy(inputs[i],f->deps[i].id,32);
+        DWORD representative;
+        if(worker_settings_key(scale,(DWORD)V(bp,-0xe0),*(WORD*)((char*)bp-0xa0),V(bp,-0xc4),V(bp,-0xd8),V(bp,-0xa8),
+                               V(bp,-0x50),V(bp,-0x4c),prefs)&&representative_frame(dir,inputs[0],prefs,frame,&representative)
+           &&worker_frame_key(representative,f->w,f->h,prefs,inputs,f->count,key)){
+            worker_frame_name(key,name);wcscpy(original,f->file);
+            BOOL hit=swprintf(f->file,MAX_PATH,L"%ls\\%ls",dir,name)>=0&&load_frame(bp,bitmap);
+            wcscpy(f->file,original);
+            if(hit){track_slot(bp,bitmap,f->w,f->h);trace("worker-hit",frame,slot);return 1;}
+        }
+    }
     trace("miss",frame,slot);return 0;
 }
 typedef struct {wchar_t path[MAX_PATH];int w,h,frame;DWORD size;BYTE* pixels;} WriteTask;
 static volatile LONG queued;
 static void publish(const WriteTask* task){
     COMPRESSOR_HANDLE compressor=NULL;BYTE* packed=NULL;SIZE_T cap=0,n=0;
-    Header h={0x33525053,task->w,task->h,0,{0}};
+    Header h={FrameXpress,task->w,task->h,0,{0}};
     wchar_t root[MAX_PATH];ULARGE_INTEGER freeBytes;
-    if(!cache_dir(root)||!GetDiskFreeSpaceExW(root,&freeBytes,0,0)||freeBytes.QuadPart<128ULL*1024*1024+task->size)return;
-    if(!sha(task->pixels,task->size,h.digest)||!CreateCompressor(COMPRESS_ALGORITHM_XPRESS_HUFF,0,&compressor))goto done;
-    Compress(compressor,task->pixels,task->size,NULL,0,&cap);
-    if(!cap||cap>task->size+65536||!(packed=malloc(cap)))goto done;
-    if(!Compress(compressor,task->pixels,task->size,packed,cap,&n))goto done;
-    h.size=(DWORD)n;wchar_t tmp[MAX_PATH];
-    if(swprintf(tmp,MAX_PATH,L"%ls.%lu.%lu.tmp",task->path,(unsigned long)GetCurrentProcessId(),(unsigned long)GetCurrentThreadId())<0)goto done;
-    HANDLE fd=CreateFileW(tmp,GENERIC_WRITE,0,NULL,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,0);
-    if(fd!=INVALID_HANDLE_VALUE){
-        BOOL ok=putall(fd,&h,sizeof(h))&&putall(fd,packed,n);CloseHandle(fd);
-        if(ok)ok=MoveFileExW(tmp,task->path,MOVEFILE_REPLACE_EXISTING);
-        if(!ok)DeleteFileW(tmp);else trace("stored",task->frame,(int)n);
+    if(!cache_dir(root)||_wcsnicmp(root,task->path,wcslen(root))||task->path[wcslen(root)]!=L'\\'||!GetDiskFreeSpaceExW(root,&freeBytes,0,0)||freeBytes.QuadPart<128ULL*1024*1024+task->size)return;
+    if(!sha(task->pixels,task->size,h.digest))goto done;
+    if(wine_runtime()){
+        ZlibCompress compress=(ZlibCompress)host_zlib("compress2");
+        DWORD length=task->size+65536;
+        if(!compress||!(packed=malloc(length))||compress(packed,&length,task->pixels,task->size,1)!=0)goto done;
+        h.magic=FrameZlib;n=length;
+    }else{
+        if(!CreateCompressor(COMPRESS_ALGORITHM_XPRESS_HUFF,0,&compressor))goto done;
+        Compress(compressor,task->pixels,task->size,NULL,0,&cap);
+        if(!cap||cap>task->size+65536||!(packed=malloc(cap)))goto done;
+        if(!Compress(compressor,task->pixels,task->size,packed,cap,&n))goto done;
     }
+    h.size=(DWORD)n;
+    if(store_cache_file(root,task->path,&h,sizeof(h),packed,(DWORD)n))trace("stored",task->frame,(int)n);
 done:
     if(compressor)CloseCompressor(compressor);free(packed);
 }
@@ -234,10 +253,9 @@ static VOID CALLBACK write_later(PTP_CALLBACK_INSTANCE ctx,void* ptr){
     WriteTask* task=ptr;publish(task);free(task->pixels);free(task);InterlockedDecrement(&queued);
 }
 EXPORT void __cdecl StoreFrame(void* bp,void* bitmap){
-    Frame* f=&current;if(!f->valid||!f->file[0]||!unchanged())return;
+    Frame* f=&current;if(!f->valid||f->missing||!f->file[0]||!unchanged())return;
     track_slot(bp,bitmap,f->w,f->h);
-    BOOL bg=lane()<0;
-    if(bg&&InterlockedIncrement(&queued)>2){InterlockedDecrement(&queued);return;}
+    if(InterlockedIncrement(&queued)>2){InterlockedDecrement(&queued);return;}
     WriteTask* task=NULL;BITMAP bm;HBITMAP handle=PTR(bitmap,0x10);
     if(!handle||!GetObjectW(handle,sizeof(bm),&bm)||bm.bmWidth!=f->w||bm.bmHeight!=f->h)goto done;
     task=calloc(1,sizeof(*task));if(!task)goto done;
@@ -246,11 +264,10 @@ EXPORT void __cdecl StoreFrame(void* bp,void* bitmap){
     BITMAPINFO bi;bitmap_info(&bi,f->w,f->h);
     HDC dc=GetDC(NULL);int rows=GetDIBits(dc,handle,0,f->h,task->pixels,&bi,DIB_RGB_COLORS);ReleaseDC(NULL,dc);
     if(rows==f->h){
-        if(bg&&TrySubmitThreadpoolCallback(write_later,task,NULL)){f->valid=FALSE;return;}
-        if(!bg)publish(task);
+        if(TrySubmitThreadpoolCallback(write_later,task,NULL)){f->valid=FALSE;return;}
     }
 done:
-    if(task){free(task->pixels);free(task);}if(bg)InterlockedDecrement(&queued);f->valid=FALSE;
+    if(task){free(task->pixels);free(task);}InterlockedDecrement(&queued);f->valid=FALSE;
 }
 typedef void (__cdecl *Raster)(const RECT*,BYTE*,const BYTE*,int,int,DWORD);
 #define FAST_RASTER ((Raster)0x9cee80)

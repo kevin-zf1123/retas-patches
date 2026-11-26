@@ -1,0 +1,30 @@
+{
+  "schema": 2,
+  "host": "stylos-2.6.0-x86",
+  "id": "crossover-shortcuts",
+  "sites": [
+    {
+      "rva": "0x1d13f",
+      "size": 8,
+      "expected": "8b17568bcfff5204"
+    }
+  ],
+  "segments": [
+    ".cxkeys"
+  ],
+  "fixups": [
+    {
+      "region": "host",
+      "address": "0x1d140",
+      "base": ".cxkeys",
+      "factor": 1
+    },
+    {
+      "region": ".cxkeys",
+      "address": "0x1",
+      "base": ".cxkeys",
+      "factor": -1
+    }
+  ],
+  "version": "0.1.0"
+}

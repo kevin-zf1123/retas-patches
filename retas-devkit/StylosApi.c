@@ -24,7 +24,7 @@ BOOL RetasDispatch(HWND w,UINT msg,WPARAM op,LPARAM arg,BOOL manager,LRESULT *re
                 *result=op==RETAS_ROTATION_DEGREES?wcstol(text,NULL,10):(LONG)(wcstod(text,NULL)*100+.5);
         }break;
     case RETAS_OPEN_PREFERENCES:
-        if(arg<0 || arg>2 || !IsWindowEnabled(w))break;
+        if(arg<0 || arg>3 || !IsWindowEnabled(w))break;
         if(arg)SetPropW(w,RETAS_PAGE_PROPERTY,(HANDLE)(INT_PTR)arg);else RemovePropW(w,RETAS_PAGE_PROPERTY);
         *result=PostMessageW(w,WM_COMMAND,40048,0);break;
     case RETAS_OPEN_MANAGER:

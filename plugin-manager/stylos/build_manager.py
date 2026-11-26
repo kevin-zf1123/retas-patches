@@ -67,17 +67,21 @@ def build(a):
                         payload[member]=inputs[key]
             current=component_bytes(p,payload)
             publish(target,current)
-        with zipfile.ZipFile(HERE/'releases/v0.zip') as history:
-            previous=history.read(name)
-        if sha(previous)!=p['v0Sha256']:
-            raise ValueError('Incorrect v0 release archive: '+name)
-        for value,release in [(previous,'v0'),(current,p['version'])]:
+        releases=[(current,p['version'])]
+        if p.get('v0Sha256'):
+            with zipfile.ZipFile(HERE/'releases/v0.zip') as history:
+                previous=history.read(name)
+            if sha(previous)!=p['v0Sha256']:
+                raise ValueError('Incorrect v0 release archive: '+name)
+            releases.insert(0,(previous,'v0'))
+        for value,release in releases:
             key=sha(value)
             archives['pkg.'+key]=value
             data['packages'][key]=p['id']
             data['packageVersions'][key]=release
-        data['packages'][p['legacyPackageSha256']]=p['id']
-        data['packageVersions'][p['legacyPackageSha256']]=''
+        if p.get('legacyPackageSha256'):
+            data['packages'][p['legacyPackageSha256']]=p['id']
+            data['packageVersions'][p['legacyPackageSha256']]=''
         for label,hashes in p['registeredVersions'].items():
             for digest in hashes:
                 if not re.fullmatch('[0-9a-f]{64}',digest) or (digest in data['packages'] and
@@ -87,20 +91,22 @@ def build(a):
                 data['packageVersions'][digest]=label
         p['currentSha256']=key
     # The old package is still installable/restorable, including its original engine bytes.
-    previous=(HERE/'releases/motion-check-0.1.0.zip').read_bytes()
-    if data['packages'].get(sha(previous))!='motion-check' or data['packageVersions'][sha(previous)]!='0.1.0':
-        raise ValueError('Unregistered historical motion package')
-    archives['pkg.'+sha(previous)]=previous
-    with zipfile.ZipFile(HERE/'releases/motion-check-0.1.0.zip') as z:
-        inputs['motion-previous']=z.read('MotionRender.dll')
+    for label,resource in [('0.1.0','motion-previous'),('0.1.1','motion-0.1.1')]:
+        previous=(HERE/'releases'/('motion-check-'+label+'.zip')).read_bytes()
+        digest=sha(previous)
+        if data['packages'].get(digest)!='motion-check' or data['packageVersions'][digest]!=label:
+            raise ValueError('Unregistered historical motion package '+label)
+        archives['pkg.'+digest]=previous
+        with zipfile.ZipFile(io.BytesIO(previous)) as z:
+            inputs[resource]=z.read('MotionRender.dll')
     if sha(inputs['motion'])!=originals['dll'].lower():
         raise ValueError('Build MotionRender.dll with motion-check/Build.ps1 and supply --motion-dll')
     inputs['filter']=(assets/'StylosCanvasFilter.dll').read_bytes()
-    known={'StylosCanvasFilter.dll':[sha(inputs['filter']),'cb3ef25efa8f0b97ad677e84d469ddd0befa8cf637ad10acb68045e78a49c65f','954501534c34b0a1fa664e38c575d57f0566620bb4c779cf7a67a235d30d2339','0b138b279152def0e60133e38aca35d5fa037e7bd0cb3a881897c10cfd0749f2','0b76e81d55a09008465eefdb2f5801e5a5a5d57c13a808f825b76b439053293a'],
+    known={'StylosCanvasFilter.dll':[sha(inputs['filter']),'813086b55e56b38971e132cb9e83886e615ddb7b6f1583f3f646bff1f97a7e3a','cb3ef25efa8f0b97ad677e84d469ddd0befa8cf637ad10acb68045e78a49c65f','954501534c34b0a1fa664e38c575d57f0566620bb4c779cf7a67a235d30d2339','0b138b279152def0e60133e38aca35d5fa037e7bd0cb3a881897c10cfd0749f2','0b76e81d55a09008465eefdb2f5801e5a5a5d57c13a808f825b76b439053293a'],
            'native':[sha(inputs['native']),'b9a26c8fcfb266c116989288862d3e2ee7a6cfc16fcccfa31361cf1a4fc4bc1b','ad1b73bff1e37bd2d2b2a7e714dd208b969bcb32e8136e3df43aa2931761c4ef'],
            'inktab':[sha(inputs['inktab']),'deb8933b022251d175c7ea8fce40ab66f51ae6d247ce845d42c12f84f303860f','3ad5603369c00511ad4cfdfef0359be6f3a1f94034f8cb1b99218528cf238477','a766df345a981f23bd51dd72bd8947ec919fd4b488f703ac6bf998d116ab16ee'],
            'StylosInk.dll':[sha(inputs['ink']),'74d5bcf42d7575f41c6145efad6ab7f4a6cad228eb7e0c46f1dd8f9772db5202','ac5925d8248b1693ed7c798fd4f0e052e01c1541e1a0c7c4a803d17410439002','9d19a67d22b97ac61015e56653d38b472545918ab0718785af261ed07f03a8a2'],
-           'MotionRender.dll':[sha(inputs['motion']),sha(inputs['motion-previous'])],'Stylos-Wacom.cmd':[sha(inputs['wacom']),'855480b99e322c7238aea4d34beb8b609438983c0ec50c854e5bbcb122c94c2e','071855b96f4d44d3c3583caa56f2d4c40f77b23d4f98ec29c81f229a32a3c893']}
+           'MotionRender.dll':[sha(inputs[k]) for k in ('motion','motion-0.1.1','motion-previous')],'StylosRender64.exe':[sha(inputs['renderer64'])],'Stylos-Wacom.cmd':[sha(inputs['wacom']),'855480b99e322c7238aea4d34beb8b609438983c0ec50c854e5bbcb122c94c2e','071855b96f4d44d3c3583caa56f2d4c40f77b23d4f98ec29c81f229a32a3c893']}
     known['wintab32.dll']=known['native']+known['inktab']
     for n in ('StylosRenderA.exe','StylosRenderB.exe'):
         known[n]=[v['workers'][n]['hash'].lower() for v in originals['variants']]

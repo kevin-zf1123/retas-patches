@@ -32,14 +32,16 @@ static BOOL CALLBACK refresh_canvas(HWND w, LPARAM unused)
 #define ITEM(w,id,msg,wp,lp) SendDlgItemMessageW(w,id,msg,wp,lp)
 static void explain(HWND w,const WCHAR *s) {MessageBoxW(w,s,L"中割对位",MB_OK|MB_ICONINFORMATION);}
 #include "../../../../stylos/rotation-scale-inbetween/ratio_editor.h"
+#include "../../../../stylos/motion-check/src/settings_page.h"
 
 // This property and draft layout belong to the released midpoint v0.1 editor.
 typedef struct { LPARAM original; HWND button; Settings settings; BOOL dirty; } MidpointDraft;
 typedef struct {
-    HWND tree, originalTree, canvasLabel, combo, group, midPage, nativePage;
-    HTREEITEM plugins, canvasItem, midItem;
+    HWND tree, originalTree, canvasLabel, combo, group, midPage, motionPage, nativePage;
+    HTREEITEM plugins, canvasItem, midItem, motionItem;
     RECT page;
     Settings draft;
+    RenderSettings motionOriginal,motionDraft;
     BOOL midpointReady, accepted;
 } Pages;
 
@@ -101,14 +103,15 @@ static HMODULE module(void) {
 static HWND find_native_page(HWND w,const Pages *p) {
     for(HWND h=GetWindow(w,GW_CHILD);h;h=GetWindow(h,GW_HWNDNEXT)){
         WCHAR c[24];
-        if(h!=p->midPage && (GetWindowLongW(h,GWL_STYLE)&WS_VISIBLE) &&
+        if(h!=p->midPage && h!=p->motionPage && (GetWindowLongW(h,GWL_STYLE)&WS_VISIBLE) &&
            GetClassNameW(h,c,24) && !lstrcmpW(c,L"#32770"))return h;
     }
     return NULL;
 }
 static void show_page(HWND w,Pages *p,HTREEITEM sel) {
     BOOL canvas=p->canvasItem && sel==p->canvasItem,mid=p->midItem && sel==p->midItem;
-    if(canvas || mid){
+    BOOL motion=p->motionItem && sel==p->motionItem;
+    if(canvas || mid || motion){
         if(!p->nativePage)p->nativePage=find_native_page(w,p);
         if(p->nativePage)ShowWindow(p->nativePage,SW_HIDE);
     }
@@ -116,7 +119,23 @@ static void show_page(HWND w,Pages *p,HTREEITEM sel) {
     if(p->canvasLabel)ShowWindow(p->canvasLabel,canvas?SW_SHOWNA:SW_HIDE);
     ShowWindow(p->combo,canvas?SW_SHOWNA:SW_HIDE);
     if(p->midPage)ShowWindow(p->midPage,mid?SW_SHOWNA:SW_HIDE);
-    if(!canvas && !mid && p->nativePage){ShowWindow(p->nativePage,SW_SHOWNA);p->nativePage=NULL;}
+    if(p->motionPage)ShowWindow(p->motionPage,motion?SW_SHOWNA:SW_HIDE);
+    if(!canvas && !mid && !motion && p->nativePage){ShowWindow(p->nativePage,SW_SHOWNA);p->nativePage=NULL;}
+}
+static void fit_page(HWND w,Pages *p,HWND page){
+    RECT r=p->page, design;
+    GetClientRect(page,&design);
+    int width=r.right-r.left,height=r.bottom-r.top;
+    if(design.right>0 && design.bottom>0){
+        WPARAM font=SendDlgItemMessageW(w,IDOK,WM_GETFONT,0,0);
+        for(HWND child=GetWindow(page,GW_CHILD);child;child=GetWindow(child,GW_HWNDNEXT)){
+            RECT pos;GetWindowRect(child,&pos);MapWindowPoints(NULL,page,(POINT *)&pos,2);
+            SendMessageW(child,WM_SETFONT,font,FALSE);
+            MoveWindow(child,MulDiv(pos.left,width,design.right),MulDiv(pos.top,height,design.bottom),
+                MulDiv(pos.right-pos.left,width,design.right),MulDiv(pos.bottom-pos.top,height,design.bottom),FALSE);
+        }
+    }
+    SetWindowPos(page,HWND_TOP,r.left,r.top,width,height,SWP_NOACTIVATE);
 }
 static void attach_midpoint(HWND w,Pages *p) {
     if(p->midpointReady)return;
@@ -125,19 +144,7 @@ static void attach_midpoint(HWND w,Pages *p) {
     p->draft=m->settings;
     p->midPage=CreateDialogParamW(module(),MAKEINTRESOURCEW(301),w,mid_page,(LPARAM)&p->draft);
     if(!p->midPage)return;
-    RECT r=p->page, design;
-    GetClientRect(p->midPage,&design);
-    int width=r.right-r.left,height=r.bottom-r.top;
-    if(design.right>0 && design.bottom>0){
-        WPARAM font=SendDlgItemMessageW(w,IDOK,WM_GETFONT,0,0);
-        for(HWND child=GetWindow(p->midPage,GW_CHILD);child;child=GetWindow(child,GW_HWNDNEXT)){
-            RECT pos;GetWindowRect(child,&pos);MapWindowPoints(NULL,p->midPage,(POINT *)&pos,2);
-            SendMessageW(child,WM_SETFONT,font,FALSE);
-            MoveWindow(child,MulDiv(pos.left,width,design.right),MulDiv(pos.top,height,design.bottom),
-                MulDiv(pos.right-pos.left,width,design.right),MulDiv(pos.bottom-pos.top,height,design.bottom),FALSE);
-        }
-    }
-    SetWindowPos(p->midPage,HWND_TOP,r.left,r.top,width,height,SWP_NOACTIVATE);
+    fit_page(w,p,p->midPage);
     p->midItem=item(p->tree,p->plugins,L"中割对位");
     if(!p->midItem){DestroyWindow(p->midPage);p->midPage=NULL;return;}
     p->midpointReady=TRUE;
@@ -148,8 +155,18 @@ static LRESULT CALLBACK preferences(HWND w,UINT msg,WPARAM wp,LPARAM lp,UINT_PTR
     Pages *p=(Pages *)data;
     if(msg==finishInit){
         attach_midpoint(w,p);
+        HMODULE motion=GetModuleHandleW(L"MotionRender.dll");
+        if(motion && GetProcAddress(motion,"MotionSettingsVersion")){
+            p->motionOriginal=render_settings();
+            p->motionPage=CreateDialogParamW(module(),MAKEINTRESOURCEW(MOTION_SETTINGS_PAGE),w,motion_page,(LPARAM)&p->motionOriginal);
+            if(p->motionPage){
+                fit_page(w,p,p->motionPage);
+                p->motionItem=item(p->tree,p->plugins,L"动检预渲染");
+                TreeView_Expand(p->tree,p->plugins,TVE_EXPAND);
+            }
+        }
         int page=(int)(INT_PTR)RemovePropW(GetAncestor(w,GA_ROOTOWNER),L"RETAS.Stylos.DevKit.RequestedPage");
-        HTREEITEM select=page==1?p->canvasItem:page==2?p->midItem:NULL;
+        HTREEITEM select=page==1?p->canvasItem:page==2?p->midItem:page==3?p->motionItem:NULL;
         if(select)TreeView_SelectItem(p->tree,select);
         return 0;
     }
@@ -160,13 +177,16 @@ static LRESULT CALLBACK preferences(HWND w,UINT msg,WPARAM wp,LPARAM lp,UINT_PTR
                 NMTREEVIEWW *n=(NMTREEVIEWW *)lp;
                 HTREEITEM sel=n->itemNew.hItem;
                 show_page(w,p,sel);
-                if(sel!=p->canvasItem && sel!=p->midItem && n->itemNew.lParam)
+                if(sel!=p->canvasItem && sel!=p->midItem && sel!=p->motionItem && n->itemNew.lParam)
                     TreeView_SelectItem(p->originalTree,(HTREEITEM)n->itemNew.lParam);
             }
             return FALSE;
         }
     }
     if(msg==WM_COMMAND && LOWORD(wp)==IDOK) {
+        if(p->motionPage && !read_motion_page(p->motionPage,&p->motionOriginal,&p->motionDraft)){
+            TreeView_SelectItem(p->tree,p->motionItem);return 0;
+        }
         p->accepted=TRUE;
         MidpointDraft *m=(MidpointDraft *)GetPropW(w,midpointProperty);
         if(m && p->midpointReady){
@@ -177,6 +197,10 @@ static LRESULT CALLBACK preferences(HWND w,UINT msg,WPARAM wp,LPARAM lp,UINT_PTR
     }
     if(msg==WM_CLOSE || (msg==WM_COMMAND && LOWORD(wp)==IDCANCEL))p->accepted=FALSE;
     if(msg==WM_DESTROY){
+        if(p->accepted&&p->motionPage){
+            if(memcmp(&p->motionOriginal,&p->motionDraft,sizeof(p->motionDraft))&&!save_render_settings(&p->motionDraft))
+                MessageBoxW(frame,L"无法保存动检配置。",L"动检预渲染",MB_ICONERROR);
+        }
         int mode=(int)(INT_PTR)RemovePropW(w,choice)-1;
         if(p->accepted && mode>=0 && mode!=GetCanvasFilter() && SetCanvasFilter(mode))
             PostMessageW(frame,refresh_message,0,0);
@@ -229,6 +253,22 @@ static void setup(HWND w,BOOL canvas) {
         TreeView_Expand(p->tree,p->plugins,TVE_EXPAND);
     }
     PostMessageW(w,finishInit,0,0); // The v0.1 modal creates its settings draft after native WM_INITDIALOG.
+}
+// A motion-only installation uses the original native settings initializer.
+static LRESULT CALLBACK motion_dialog_init(int code,WPARAM wp,LPARAM lp){
+    if(code>=0){
+        const CWPRETSTRUCT* m=(const CWPRETSTRUCT*)lp;
+        DWORD_PTR attached;
+        if(m->message==WM_INITDIALOG && GetDlgItem(m->hwnd,1762) && GetDlgItem(m->hwnd,1763)
+           && GetDlgItem(m->hwnd,IDOK) && !GetWindowSubclass(m->hwnd,preferences,Combo,&attached))
+            setup(m->hwnd,FALSE);
+    }
+    return CallNextHookEx(NULL,code,wp,lp);
+}
+HHOOK WatchMotionPreferences(void){
+    HMODULE motion=GetModuleHandleW(L"MotionRender.dll");
+    if(!motion||!GetProcAddress(motion,"MotionSettingsVersion"))return NULL;
+    return SetWindowsHookExW(WH_CALLWNDPROCRET,motion_dialog_init,NULL,GetCurrentThreadId());
 }
 static LRESULT CALLBACK main_frame(HWND w,UINT msg,WPARAM wp,LPARAM lp,UINT_PTR id,DWORD_PTR data) {
     if(msg==refresh_message){EnumChildWindows(w,refresh_canvas,0);return 0;}

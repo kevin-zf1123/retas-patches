@@ -27,12 +27,12 @@
       "bit": 2,
       "name": "运动检查与后台预渲染",
       "package": "Stylos-Motion-Check-x86.zip",
-      "page": 0,
+      "page": 3,
       "conflicts": 0,
       "manifest": "stylos/motion-check/plugin.json",
       "legacyPackageSha256": "e5c53692e553fdf03abe59c7491432c765b46758555fdcb5c5ecb1046f1e07e6",
       "v0Sha256": "5f010c32c077921431bb7eebc5cd21544288837fbeeeafd835a06aeb2abe00ef",
-      "version": "0.1.1",
+      "version": "0.2.0",
       "registeredVersions": {
         "v0": [
           "5f010c32c077921431bb7eebc5cd21544288837fbeeeafd835a06aeb2abe00ef"
@@ -42,6 +42,9 @@
         ],
         "0.1.1": [
           "4378548a4f3b57aa3aca34d89d98f71e96ac29cb3d4d4696b38dcf91ffb7bb58"
+        ],
+        "0.2.0": [
+          "ecfd6a81ffc6b78b944047968bddeb5e884fc3506524fc943a93419ddfb29d68"
         ]
       }
     },
@@ -166,6 +169,36 @@
           "6f4396bacf16d2fbfb194563f5fef0c48ecc298752e5d7e07b25bff64df12508"
         ]
       }
+    },
+    {
+      "id": "crossover-shortcuts",
+      "bit": 256,
+      "name": "CrossOver 输入法工具快捷键",
+      "package": "Stylos-CrossOver-Shortcuts-x86.zip",
+      "page": 0,
+      "conflicts": 0,
+      "manifest": "stylos/cross-over-mac/shortcuts/plugin.json",
+      "version": "0.1.0",
+      "registeredVersions": {
+        "0.1.0": [
+          "59e80080880e23967e4c732ce5a35cec58c310ee49dbfdacd053e119cf6b2925"
+        ]
+      }
+    },
+    {
+      "id": "crossover-pressure",
+      "bit": 512,
+      "name": "CrossOver 起笔压力回退",
+      "package": "Stylos-CrossOver-Pressure-x86.zip",
+      "page": 0,
+      "conflicts": 0,
+      "manifest": "stylos/cross-over-mac/pressuredriver/plugin.json",
+      "version": "0.1.0",
+      "registeredVersions": {
+        "0.1.0": [
+          "704c2c942c2f2e6d96ae56b62ff27305b044db4e7778da1179812e0a6df71f2f"
+        ]
+      }
     }
   ],
   "manager": {
@@ -175,7 +208,9 @@
   "sectionOrder": [
     ".motion",
     ".idata",
-    ".ltalign"
+    ".ltalign",
+    ".cxkeys",
+    ".cxpress"
   ],
-  "managerVersion": "0.1.1"
+  "managerVersion": "0.2.0"
 }

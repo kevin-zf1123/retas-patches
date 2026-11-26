@@ -7,7 +7,7 @@ from pathlib import Path
 import json
 REGISTRY = json.loads(Path(__file__).with_name("entries.json").read_text(encoding="utf8"))
 ENTRIES = {entry["name"]: entry["id"] for entry in REGISTRY["entries"]}
-PAGES = {"general": 0, "canvas": 1, "midpoint": 2}
+PAGES = {"general": 0, "canvas": 1, "midpoint": 2, "motion": 3}
 
 def request(entry, arg=0, hwnd=None):
     u = ctypes.WinDLL("user32", use_last_error=True)

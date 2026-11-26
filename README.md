@@ -15,11 +15,11 @@
 
 | 构建目标 | 构建环境和输入 |
 |---|---|
-| `high-dpi`、`anti-alias`、`inbetween`、`rotation-shortcuts`、`mousewheel-zoom` | Windows、macOS 或 Linux，CMake 3.19+ 和 Python 3.8+。这些 ZIP 包含清单和说明，功能实现由管理器提供。 |
-| `motion-check` | Windows PowerShell 和 Zig 0.13.0（`zig.exe` 在 PATH 中）。 |
+| `high-dpi`、`anti-alias`、`inbetween`、`rotation-shortcuts`、`mousewheel-zoom`、`crossover-shortcuts`、`crossover-pressure` | Windows、macOS 或 Linux，CMake 3.19+ 和 Python 3.8+。这些 ZIP 包含清单和说明，功能实现由管理器提供。 |
+| `motion-check` | Windows PowerShell、Zig 0.13.0（`zig.exe` 在 PATH 中）、Visual Studio 2022 x64 C++ 工具和 CMake 3.25+。 |
 | `tablet-native` | Windows PowerShell 和 32 位 Tiny C Compiler（`tcc.exe` 在 PATH 中）。 |
 | `windows-ink` | Windows PowerShell 和 32 位 .NET Framework 4.x 的 `csc.exe`、`ilasm.exe`。 |
-| `plugin-manager`、`packages` | Windows，以上全部工具、Python 包 `lief` 和 `pefile`、下述 Stylos 参考文件。两者都会生成管理器和八个配套组件。 |
+| `plugin-manager`、`packages` | Windows，以上全部工具、Python 包 `lief` 和 `pefile`、下述 Stylos 参考文件。两者都会生成管理器和十个配套组件。 |
 
 例如，单独构建滚轮缩放组件会生成 `packages/Stylos-Mousewheel-Zoom-x86.zip`。以下命令使用 Ninja 作为 CMake 生成器。将目标换成 `components` 可构建当前平台支持的全部组件。
 
@@ -30,7 +30,7 @@ cmake --build build --target mousewheel-zoom
 
 构建全套时，先解压 v0.1 发行包取得 `StylosInbetween.exe`。在本机准备 Stylos 2.6.0 x86 参考镜像，按 `<参考目录>/<变体>/<阶段>.exe` 存放。四个变体为 `chs`、`chs-laa`、`precanvas`、`canvas`，每个变体各需 `base.exe`、`stage1.exe` 和 `main.exe`。文件的 SHA-256 应与对应变体和阶段的登记值一致。[参考镜像登记表](stylos/motion-check/versions.json)
 
-在 Windows PowerShell 中把下例的两个路径换成本机路径。构建完成后，按上面的管理器安装步骤使用 `packages/` 里的九个 ZIP。
+在 Windows PowerShell 中把下例的两个路径换成本机路径。构建完成后，按上面的管理器安装步骤使用 `packages/` 里的十一个 ZIP。
 
 ```powershell
 python -m pip install lief==1.0.0 pefile==2024.8.26
@@ -43,7 +43,7 @@ cmake --build build --target packages --parallel
 
 ## Stylos 2.6.0 · Windows x86
 
-[八个插件的中文使用手册](docs/manuals/README.md)
+[八个通用组件的中文使用手册](docs/manuals/README.md) · [macOS CrossOver 专用插件](stylos/cross-over-mac/README.md)
 
 | 插件 | 源码 | 组件包 |
 |---|---|---|

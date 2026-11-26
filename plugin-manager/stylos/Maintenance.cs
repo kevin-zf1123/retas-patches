@@ -102,7 +102,7 @@ internal sealed partial class Engine {
             if(selection.managerShortcut!=0 && File.Exists(profile)){
                 desired["profile"]=ShortcutBinding.RemoveManager(File.ReadAllBytes(profile),(char)selection.managerShortcut);
             }
-            foreach(string key in new[]{"StylosCanvasFilter.dll","MotionRender.dll","StylosRenderA.exe","StylosRenderB.exe",
+            foreach(string key in new[]{"StylosCanvasFilter.dll","MotionRender.dll","StylosRender64.exe","StylosRenderA.exe","StylosRenderB.exe",
                       "wintab32.dll","StylosInk.dll","Stylos-Wacom.cmd"})
                 if(Catalog.known[key].Contains(Digest(paths[key])))desired[key]=null;
             foreach(var p in Catalog.plugins)desired["package-"+p.id]=null;
