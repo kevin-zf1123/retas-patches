@@ -2,6 +2,8 @@
 
 ## Stylos 2.6.0 · Windows x86
 
+[八个插件的中文使用手册](docs/manuals/README.md)
+
 先安装 [Stylos 插件管理器](packages/Stylos-Plugin-Manager-x86.zip)，再从「编辑 → 设置 → 插件管理器…」选择组件 ZIP。管理器支持独立启停、卸载和版本校验。[安装说明](packages/INSTALL.zh-CN.md)
 
 | 插件 | 源码 | 组件包 |
