@@ -1,0 +1,40 @@
+{
+  "schema": 2,
+  "host": "stylos-2.6.0-x86",
+  "id": "inbetween",
+  "sites": [
+    {
+      "rva": "0x230b6",
+      "size": 6
+    },
+    {
+      "rva": "0xe22d1",
+      "size": 19
+    }
+  ],
+  "segments": [
+    ".ltalign"
+  ],
+  "fixups": [
+    {
+      "region": "host",
+      "address": "0x230b7",
+      "base": ".ltalign",
+      "factor": 1
+    },
+    {
+      "region": "host",
+      "address": "0xe22d8",
+      "base": ".ltalign",
+      "factor": 1
+    },
+    {
+      "region": ".ltalign",
+      "address": "0x8050",
+      "count": 18,
+      "base": ".ltalign",
+      "factor": -1
+    }
+  ],
+  "version": "0.1.0"
+}

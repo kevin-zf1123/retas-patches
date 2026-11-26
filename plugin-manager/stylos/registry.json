@@ -1,10 +1,176 @@
-{"schema":1,"host":"Stylos 2.6.0 x86","plugins":[
- {"id":"high-dpi","bit":1,"name":"高 DPI 界面","package":"Stylos-High-DPI-x86.zip","page":0,"conflicts":0},
- {"id":"motion-check","bit":2,"name":"运动检查与后台预渲染","package":"Stylos-Motion-Check-x86.zip","page":0,"conflicts":0},
- {"id":"anti-alias","bit":4,"name":"画布显示","package":"Stylos-Better-Canvas-Display-x86.zip","page":1,"conflicts":0},
- {"id":"inbetween","bit":8,"name":"中割对位","package":"Stylos-Inbetween-x86.zip","page":2,"conflicts":0},
- {"id":"tablet-native","bit":16,"name":"原生数位板坐标修正","package":"Stylos-Native-Tablet-x86.zip","page":0,"conflicts":32},
- {"id":"windows-ink","bit":32,"name":"Windows Ink 笔输入","package":"Stylos-Windows-Ink-x86.zip","page":0,"conflicts":16},
- {"id":"rotation-shortcuts","bit":64,"name":"旋转快捷键与预览器登记","package":"Stylos-Rotation-Shortcuts-x86.zip","page":0,"conflicts":0},
- {"id":"mousewheel-zoom","bit":128,"name":"指针中心滚轮缩放","package":"Stylos-Mousewheel-Zoom-x86.zip","page":0,"conflicts":0}
-]}
+{
+  "schema": 1,
+  "host": "Stylos 2.6.0 x86",
+  "plugins": [
+    {
+      "id": "high-dpi",
+      "bit": 1,
+      "name": "高 DPI 界面",
+      "package": "Stylos-High-DPI-x86.zip",
+      "page": 0,
+      "conflicts": 0,
+      "manifest": "stylos/high-dpi/plugin.json",
+      "legacyPackageSha256": "5c7b5071b182f2d620a1e4ed1818f8d39f0b30621581400828c96fd6db6edacf",
+      "v0Sha256": "97db60736b163adaf844968ab0b5e40bbcdea613275352963fb1abffa7a249f8",
+      "version": "0.1.0",
+      "registeredVersions": {
+        "v0": [
+          "97db60736b163adaf844968ab0b5e40bbcdea613275352963fb1abffa7a249f8"
+        ],
+        "0.1.0": [
+          "fab588dbfd11661b7c7c4d470964aec4352753ec671c0f68f7f12a57edc46836"
+        ]
+      }
+    },
+    {
+      "id": "motion-check",
+      "bit": 2,
+      "name": "运动检查与后台预渲染",
+      "package": "Stylos-Motion-Check-x86.zip",
+      "page": 0,
+      "conflicts": 0,
+      "manifest": "stylos/motion-check/plugin.json",
+      "legacyPackageSha256": "e5c53692e553fdf03abe59c7491432c765b46758555fdcb5c5ecb1046f1e07e6",
+      "v0Sha256": "5f010c32c077921431bb7eebc5cd21544288837fbeeeafd835a06aeb2abe00ef",
+      "version": "0.1.0",
+      "registeredVersions": {
+        "v0": [
+          "5f010c32c077921431bb7eebc5cd21544288837fbeeeafd835a06aeb2abe00ef"
+        ],
+        "0.1.0": [
+          "f4cb8bdfe2beec0fdec65ed70bcca99865d21df512e169e3dffe40b39ca20e4a"
+        ]
+      }
+    },
+    {
+      "id": "anti-alias",
+      "bit": 4,
+      "name": "画布显示",
+      "package": "Stylos-Better-Canvas-Display-x86.zip",
+      "page": 1,
+      "conflicts": 0,
+      "manifest": "better-canvas/zoom/anti-alias/plugin.json",
+      "legacyPackageSha256": "dd160e7f9caf763ae9bbb1409b5bfd21fb76c5ff6ba6860e8b664345e4bfd613",
+      "v0Sha256": "6c48752ba5b2eaa98d6984cebfb02f5f066cd65b0b99207f97f684e33e52802f",
+      "version": "0.1.0",
+      "registeredVersions": {
+        "v0": [
+          "6c48752ba5b2eaa98d6984cebfb02f5f066cd65b0b99207f97f684e33e52802f"
+        ],
+        "0.1.0": [
+          "93f917795d77431b88492a416871b00341dde3cbec3eec420eb8c86ab625a024"
+        ]
+      }
+    },
+    {
+      "id": "inbetween",
+      "bit": 8,
+      "name": "中割对位",
+      "package": "Stylos-Inbetween-x86.zip",
+      "page": 2,
+      "conflicts": 0,
+      "manifest": "stylos/rotation-scale-inbetween/plugin.json",
+      "legacyPackageSha256": "4803f9b4ba9bea2c0afc8a4bf64e7477a39386aae248e6c30c46ff2d2fd9e050",
+      "v0Sha256": "3ba30bd6f1e6e4f8c86a71124cd3a2669fe6cb9483e205820dcd2250b2d4be7f",
+      "version": "0.1.0",
+      "registeredVersions": {
+        "v0": [
+          "3ba30bd6f1e6e4f8c86a71124cd3a2669fe6cb9483e205820dcd2250b2d4be7f"
+        ],
+        "0.1.0": [
+          "cd67b9c91a92b75fbd81d35182a93eaa8c732f5990ea2dd13915cbff44afd9ed"
+        ]
+      }
+    },
+    {
+      "id": "tablet-native",
+      "bit": 16,
+      "name": "原生数位板坐标修正",
+      "package": "Stylos-Native-Tablet-x86.zip",
+      "page": 0,
+      "conflicts": 32,
+      "manifest": "stylos/tablet-native/plugin.json",
+      "legacyPackageSha256": "e56d28494103e66afcc2a572db17d32a4138432ac9fe110007ba4a32938b0d8f",
+      "v0Sha256": "a76a77ef105e20f03b5b0f0411171d294b8b1aa25b5dc30eb510597ea120059b",
+      "version": "0.1.0",
+      "registeredVersions": {
+        "v0": [
+          "a76a77ef105e20f03b5b0f0411171d294b8b1aa25b5dc30eb510597ea120059b"
+        ],
+        "0.1.0": [
+          "d9573ca60d61b5795397bd9ef6a86353cda5aebaecf0b5465065056cac1dfd53"
+        ]
+      }
+    },
+    {
+      "id": "windows-ink",
+      "bit": 32,
+      "name": "Windows Ink 笔输入",
+      "package": "Stylos-Windows-Ink-x86.zip",
+      "page": 0,
+      "conflicts": 16,
+      "manifest": "stylos/windows-ink/plugin.json",
+      "legacyPackageSha256": "92fece6b52881a843c69e15f21ee1d39c372c9768d3880d5e6da114226a03ac8",
+      "v0Sha256": "5c309eea97e4a28060c8220f4c87490891d50b6611e36b8b695f2b99eb4c4302",
+      "version": "0.1.0",
+      "registeredVersions": {
+        "v0": [
+          "5c309eea97e4a28060c8220f4c87490891d50b6611e36b8b695f2b99eb4c4302"
+        ],
+        "0.1.0": [
+          "be9a556d778636bbbee51cf72bc094c8462e0fb8bea8a1303cbc3df5b1deaf54"
+        ]
+      }
+    },
+    {
+      "id": "rotation-shortcuts",
+      "bit": 64,
+      "name": "旋转快捷键与预览器登记",
+      "package": "Stylos-Rotation-Shortcuts-x86.zip",
+      "page": 0,
+      "conflicts": 0,
+      "manifest": "better-canvas/rotation-shortcuts/plugin.json",
+      "legacyPackageSha256": "2e843a49207cdd08a016667de7c58962b2fdbc1cecc722ad7f767147b5c764ac",
+      "v0Sha256": "93e313ba2d3bfcab3d5c99c6dad303a218bee7e63c30e47e64c4f26bb53aa612",
+      "version": "0.1.0",
+      "registeredVersions": {
+        "v0": [
+          "93e313ba2d3bfcab3d5c99c6dad303a218bee7e63c30e47e64c4f26bb53aa612"
+        ],
+        "0.1.0": [
+          "b1a1d52cf2645b00d90e80bed6b4a4ff246c04e422df0327543b52aea24c5be0"
+        ]
+      }
+    },
+    {
+      "id": "mousewheel-zoom",
+      "bit": 128,
+      "name": "指针中心滚轮缩放",
+      "package": "Stylos-Mousewheel-Zoom-x86.zip",
+      "page": 0,
+      "conflicts": 0,
+      "manifest": "better-canvas/zoom/mousewheel-zoom/plugin.json",
+      "legacyPackageSha256": "2be6ce58804c58aa076c0559d99ca9479cfcc170cac80da7d491a95b9f9d7c26",
+      "v0Sha256": "d2079937322a563ed099bdba9a14164d8247f5f8ef16d389e5e07cff51356739",
+      "version": "0.1.0",
+      "registeredVersions": {
+        "v0": [
+          "d2079937322a563ed099bdba9a14164d8247f5f8ef16d389e5e07cff51356739"
+        ],
+        "0.1.0": [
+          "6f4396bacf16d2fbfb194563f5fef0c48ecc298752e5d7e07b25bff64df12508"
+        ]
+      }
+    }
+  ],
+  "manager": {
+    "id": "plugin-manager",
+    "manifest": "plugin-manager/stylos/plugin.json"
+  },
+  "sectionOrder": [
+    ".motion",
+    ".idata",
+    ".ltalign"
+  ],
+  "managerVersion": "0.1.0"
+}

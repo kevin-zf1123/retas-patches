@@ -1,4 +1,5 @@
 """Validated GUI and canvas entry points for the x86 Stylos 2.6.0 host."""
+from patch_layout import named_sites
 import hashlib
 import struct
 import lief
@@ -35,13 +36,15 @@ def link_canvas(source,target,mode="canvas"):
     data=source.read_bytes()
     require(digest(data).hex() in HOSTS, 'Unsupported input: '+str(source))
     with pefile.PE(data=data) as before:old=imports(before)
-    render=[(NAMES[0],0x67864,'8bcbc645fc0ae8f197ffff','53c645fc0aff15'),
-            (NAMES[1],0x68352,'8bcbe877a6ffff','53ff15')]
+    bridge = named_sites('plugin-manager/stylos/plugin.json')
+    canvas = named_sites('better-canvas/zoom/anti-alias/plugin.json')
+    render=[(NAMES[0],canvas['scale'],'8bcbc645fc0ae8f197ffff','53c645fc0aff15'),
+            (NAMES[1],canvas['rotate'],'8bcbe877a6ffff','53ff15')]
     changes=render[:] if mode in ('canvas','previous') else []
-    if mode!='previous':changes.append(('PluginManagerMessage',0x1d130,'ff1550f49c00','ff15'))
+    if mode!='previous':changes.append(('PluginManagerMessage',bridge['message'],'ff1550f49c00','ff15'))
     if mode!='manager':
         name='MidpointPreferences' if mode=='midpoint' else 'CanvasPreferences'
-        changes.append((name,0xf0cf,'e8ecebffff83c40c','ff15'))
+        changes.append((name,bridge['preferences'],'e8ecebffff83c40c','ff15'))
     # Preserve the historical import order in the earlier settings build.
     binary=lief.PE.parse(str(source));lib=binary.add_import(FILTER)
     for name,*_ in changes:
@@ -56,9 +59,8 @@ def link_canvas(source,target,mode="canvas"):
         for name,rva,signature,prefix in changes:
             pos=pe.get_offset_from_rva(rva);key=(FILTER.lower().encode(),name.encode(),None)
             code=bytes.fromhex(prefix)+struct.pack('<I',new[key])
-            if rva==0xf0cf:code+=bytes.fromhex('9090')
+            if rva==bridge['preferences']:code+=bytes.fromhex('9090')
             expected=code if key in old else bytes.fromhex(signature)
             require(result[pos:pos+len(code)]==expected,'Call site mismatch: '+name)
             result[pos:pos+len(code)]=code
     target.write_bytes(result)
-

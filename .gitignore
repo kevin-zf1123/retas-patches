@@ -106,3 +106,25 @@
 !/packages/Stylos-Rotation-Shortcuts-x86.zip
 !/packages/Stylos-Mousewheel-Zoom-x86.zip
 !/packages/Stylos-Plugin-Manager-x86.zip
+
+# Offline address declarations and linker
+!/retas-devkit/patch_layout.py
+!/retas-devkit/PatchMap.cs
+!/retas-devkit/test_patch_layout.py
+!/plugin-manager/stylos/plugin.json
+!/better-canvas/**/plugin.json
+!/stylos/*/plugin.json
+!/plugin-manager/stylos/PatchCatalog.cs
+!/plugin-manager/stylos/verify_layout.ps1
+!/retas-devkit/ManagePlugin.ps1
+
+# Manager release metadata and maintenance commands
+!/plugin-manager/stylos/Maintenance.cs
+!/plugin-manager/stylos/Backup.cs
+!/plugin-manager/stylos/releases/
+!/plugin-manager/stylos/releases/v0.zip
+!/plugin-manager/stylos/verify_maintenance.ps1
+
+!/docs/
+!/docs/manuals/
+!/docs/manuals/*.md

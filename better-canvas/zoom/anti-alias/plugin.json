@@ -1,0 +1,19 @@
+{
+  "schema": 2,
+  "host": "stylos-2.6.0-x86",
+  "id": "anti-alias",
+  "sites": [
+    {
+      "name": "scale",
+      "rva": "0x67864",
+      "size": 11
+    },
+    {
+      "name": "rotate",
+      "rva": "0x68352",
+      "size": 7
+    }
+  ],
+  "segments": [],
+  "version": "0.1.0"
+}
