@@ -17,3 +17,7 @@ python better-canvas-display/build.py --host D:\RETAS\Stylos\Stylos.exe --inbetw
 ```
 
 ZIP 仅包含离线安装器、说明和许可证。安装器内置经过校验的差分与画布 DLL。命令行安装可运行 `StylosCanvasSetup.exe --install "D:\RETAS\Stylos\Stylos.exe"`。
+
+交付包收录 12 个基线（中文原始版、4 GiB、DPI 修正版、上一版画布及对应的动检阶段），并为每个基线生成中割 v0.1 的共装转换。自建包仅支持构建时提供的基线。若需要动检，请先安装动检，再安装本包和中割。
+
+从仓库根目录可对任一支持的本地主程序运行安装顺序回归检查，脚本使用临时目录：`python better-canvas-display/verify.py packages/Stylos-Better-Canvas-Display-x86.zip D:\tools\StylosInbetween.exe D:\RETAS\Stylos\Stylos.exe`。
