@@ -169,7 +169,10 @@ static void track_slot(void* bp,void* bitmap,int w,int h){
 EXPORT int __cdecl BeginFrame(void* bp,void* bitmap){
     Frame* f=&current;f->probing=FALSE;f->valid=FALSE;f->file[0]=0;f->count=0;int frame=V(bp,-0x14);
     int slot=(int)(((intptr_t)bitmap-(intptr_t)PTR(bp,-0x78))/40);
-    if(lane()>=0 && (slot&1)!=lane())return 2;
+    if(lane()>=0){
+        signal_render_ready();
+        if((slot&1)!=lane())return 2;
+    }
     void* doc=PTR(bp,8);
     wchar_t path[MAX_PATH],dir[MAX_PATH];if(V(doc,0x20)>0||!native_path((char*)doc+16,path)||!isext(path,L".sxf")||!cache_dir(dir))return 0;
     f->w=V(bp,-0x2c);f->h=V(bp,-0x28);f->frame=frame;

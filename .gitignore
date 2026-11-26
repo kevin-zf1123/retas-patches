@@ -123,8 +123,12 @@
 !/plugin-manager/stylos/Backup.cs
 !/plugin-manager/stylos/releases/
 !/plugin-manager/stylos/releases/v0.zip
+!/plugin-manager/stylos/releases/motion-check-0.1.0.zip
 !/plugin-manager/stylos/verify_maintenance.ps1
 
 !/docs/
 !/docs/manuals/
 !/docs/manuals/*.md
+
+!/stylos/motion-check/verify_startup.c
+!/stylos/motion-check/verify_startup.py

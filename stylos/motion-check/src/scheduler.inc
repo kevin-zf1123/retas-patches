@@ -19,26 +19,104 @@ static unsigned __stdcall start_worker_ui(void* ignored){
     }
     ExitProcess(21);return 0;
 }
-static HANDLE spawn_lane(const wchar_t* sheet,int id,HDESK desk,const wchar_t* desktop,HANDLE job){
+// The native startup helper is extracted to one shared %TEMP% filename.
+// Signal at the first render callback, after native startup and sheet opening.
+static void ready_name(wchar_t name[64],DWORD pid){
+    swprintf(name,64,L"Local\\StylosMotionReady_%lu",(unsigned long)pid);
+}
+static void signal_render_ready(void){
+    static LONG signalled;
+    if(InterlockedCompareExchange(&signalled,1,0))return;
+    wchar_t name[64];ready_name(name,GetCurrentProcessId());
+    HANDLE event=OpenEventW(EVENT_MODIFY_STATE,FALSE,name);
+    if(event){SetEvent(event);CloseHandle(event);}
+}
+typedef struct {
+    HANDLE job,children[2],ready;
+    int starting;
+    ULONGLONG launched,startDeadline;
+    BOOL draining;
+} RenderBatch;
+enum BatchResult { BatchRunning, BatchDone, BatchFailed };
+static HANDLE render_job(void){
+    HANDLE job=CreateJobObjectW(NULL,NULL);
+    JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits={0};
+    limits.BasicLimitInformation.LimitFlags=JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+    if(job&&!SetInformationJobObject(job,JobObjectExtendedLimitInformation,&limits,sizeof(limits))){
+        CloseHandle(job);return NULL;
+    }
+    return job;
+}
+static BOOL spawn_lane(RenderBatch* batch,const wchar_t* sheet,int id,const wchar_t* desktop){
     wchar_t exe[MAX_PATH],cmd[2*MAX_PATH+12];
-    if(!desk||!GetModuleFileNameW(0,exe,MAX_PATH))return NULL;
-    wchar_t* last=wcsrchr(exe,L'\\');if(!last||last-exe>MAX_PATH-22)return NULL;
+    DWORD n=GetModuleFileNameW(NULL,exe,MAX_PATH);
+    if(!n||n>=MAX_PATH)return FALSE;
+    wchar_t* last=wcsrchr(exe,L'\\');if(!last||last-exe>MAX_PATH-22)return FALSE;
     wcscpy(last+1,id?L"StylosRenderB.exe":L"StylosRenderA.exe");
-    if(swprintf(cmd,sizeof(cmd)/sizeof(*cmd),L"\"%ls\" \"%ls\"",exe,sheet)<0)return NULL;
+    if(swprintf(cmd,sizeof(cmd)/sizeof(*cmd),L"\"%ls\" \"%ls\"",exe,sheet)<0)return FALSE;
     STARTUPINFOW si={0};si.cb=sizeof(si);si.lpDesktop=(PWSTR)desktop;
     wchar_t cwd[MAX_PATH];wcscpy(cwd,exe);*wcsrchr(cwd,L'\\')=0;
     PROCESS_INFORMATION pi={0};
-    if(!CreateProcessW(exe,cmd,NULL,NULL,FALSE,CREATE_SUSPENDED|BELOW_NORMAL_PRIORITY_CLASS,NULL,cwd,&si,&pi))return NULL;
-    if(!AssignProcessToJobObject(job,pi.hProcess)||ResumeThread(pi.hThread)==(DWORD)-1){
-        TerminateProcess(pi.hProcess,22);CloseHandle(pi.hProcess);pi.hProcess=NULL;
+    if(!CreateProcessW(exe,cmd,NULL,NULL,FALSE,CREATE_SUSPENDED|BELOW_NORMAL_PRIORITY_CLASS,NULL,cwd,&si,&pi))return FALSE;
+    wchar_t name[64];ready_name(name,pi.dwProcessId);
+    SetLastError(ERROR_SUCCESS);
+    HANDLE ready=CreateEventW(NULL,TRUE,FALSE,name);
+    BOOL ok=ready && GetLastError()!=ERROR_ALREADY_EXISTS && AssignProcessToJobObject(batch->job,pi.hProcess);
+    if(ok){
+        trace("start-lane",id,(int)pi.dwProcessId);
+        ok=ResumeThread(pi.hThread)!=(DWORD)-1;
     }
-    CloseHandle(pi.hThread);return pi.hProcess;
+    CloseHandle(pi.hThread);
+    if(!ok){
+        TerminateProcess(pi.hProcess,22);CloseHandle(pi.hProcess);
+        if(ready)CloseHandle(ready);
+        return FALSE;
+    }
+    batch->children[id]=pi.hProcess;batch->ready=ready;batch->starting=id;
+    batch->startDeadline=GetTickCount64()+60000;
+    return TRUE;
+}
+static enum BatchResult advance_batch(RenderBatch* batch,const wchar_t* sheet,const wchar_t* desktop,ULONGLONG now){
+    if(batch->ready){
+        int id=batch->starting;
+        BOOL ended=WaitForSingleObject(batch->children[id],0)==WAIT_OBJECT_0;
+        if(WaitForSingleObject(batch->ready,0)==WAIT_OBJECT_0){
+            CloseHandle(batch->ready);batch->ready=NULL;
+            trace("render-ready",id,(int)GetProcessId(batch->children[id]));
+            if(!id && !spawn_lane(batch,sheet,1,desktop))return BatchFailed;
+        }else if(ended||now>=batch->startDeadline){
+            DWORD code=0;
+            if(ended)GetExitCodeProcess(batch->children[id],&code);
+            trace(ended?"startup-exit":"startup-timeout",id,(int)code);
+            return BatchFailed;
+        }
+    }
+    for(int id=0;id<2;id++){
+        HANDLE child=batch->children[id];
+        // An event remains signalled even if a very short sheet has already finished.
+        if(!child || (batch->ready && id==batch->starting) || WaitForSingleObject(child,0)!=WAIT_OBJECT_0)continue;
+        DWORD code=1;GetExitCodeProcess(child,&code);trace("worker-exit",id,(int)code);
+        CloseHandle(child);batch->children[id]=NULL;
+        if(code)return BatchFailed;
+    }
+    return batch->children[0]||batch->children[1]?BatchRunning:BatchDone;
+}
+static void stop_batch(RenderBatch* batch){
+    if(batch->ready){CloseHandle(batch->ready);batch->ready=NULL;}
+    for(int id=0;id<2;id++)if(batch->children[id]){
+        CloseHandle(batch->children[id]);batch->children[id]=NULL;
+    }
+    // Include native helper descendants when cancelling a partially started lane.
+    TerminateJobObject(batch->job,23);
+    batch->draining=TRUE;
+}
+static void reap_batch(RenderBatch* batch){
+    JOBOBJECT_BASIC_ACCOUNTING_INFORMATION info;
+    if(QueryInformationJobObject(batch->job,JobObjectBasicAccountingInformation,&info,sizeof(info),NULL) && !info.ActiveProcesses){
+        CloseHandle(batch->job);*batch=(RenderBatch){0};
+    }
 }
 static DWORD idle_ms(void){DWORD owner=0;GetWindowThreadProcessId(GetForegroundWindow(),&owner);if(owner!=GetCurrentProcessId())return 60000;LASTINPUTINFO i={sizeof(i)};return GetLastInputInfo(&i)?GetTickCount()-i.dwTime:0;}
-static void stop_lane(HANDLE* p){
-    if(!*p)return;if(WaitForSingleObject(*p,0)==WAIT_TIMEOUT)TerminateProcess(*p,23);
-    WaitForSingleObject(*p,3000);CloseHandle(*p);*p=NULL;
-}
 typedef struct {WIN32_FIND_DATAW data;} CacheItem;
 static int by_age(const void* a,const void* b){return CompareFileTime(&((const CacheItem*)a)->data.ftLastWriteTime,&((const CacheItem*)b)->data.ftLastWriteTime);}
 static void prune(void){
@@ -66,11 +144,11 @@ static void prune(void){
 }
 static unsigned __stdcall monitor(void* ignored){
     wchar_t desktop[64],path[MAX_PATH]={0},folder[MAX_PATH];swprintf(desktop,64,L"StylosRender_%lu",(unsigned long)GetCurrentProcessId());
-    HDESK desk=CreateDesktopW(desktop,NULL,NULL,0,GENERIC_ALL,NULL);HANDLE job=CreateJobObjectW(NULL,NULL);
-    JOBOBJECT_EXTENDED_LIMIT_INFORMATION settings={0};settings.BasicLimitInformation.LimitFlags=JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
-    if(!desk||!job||!SetInformationJobObject(job,JobObjectExtendedLimitInformation,&settings,sizeof(settings)))return 0;
-    HANDLE children[2]={0},watch=INVALID_HANDLE_VALUE;LONG seen=0;BOOL pending=FALSE;
-    ULONGLONG since=0,launched=0,lastPrune=0;int retry=0;
+    HDESK desk=CreateDesktopW(desktop,NULL,NULL,0,GENERIC_ALL,NULL);
+    if(!desk)return 0;
+    RenderBatch batch={0};
+    HANDLE watch=INVALID_HANDLE_VALUE;LONG seen=0;BOOL pending=FALSE;
+    ULONGLONG since=0,lastPrune=0;int retry=0;
     for(;;){
         Sleep(250);ULONGLONG now=GetTickCount64();LONG gen=InterlockedCompareExchange(&revision,0,0);BOOL changed=FALSE;
         if(gen!=seen){
@@ -83,18 +161,24 @@ static unsigned __stdcall monitor(void* ignored){
         if(watch!=INVALID_HANDLE_VALUE&&WaitForSingleObject(watch,0)==WAIT_OBJECT_0){changed=TRUE;FindNextChangeNotification(watch);}
         if(changed){since=now;pending=TRUE;retry=0;}
         DWORD idle=idle_ms();
-        if(children[0]||children[1]){
-            if(changed||idle<500||now-launched>900000){
-                stop_lane(children);stop_lane(children+1);pending=TRUE;since=now;
-            }else for(int i=0;i<2;i++)if(children[i]&&WaitForSingleObject(children[i],0)==WAIT_OBJECT_0){
-                DWORD code;GetExitCodeProcess(children[i],&code);CloseHandle(children[i]);children[i]=NULL;
-                trace("worker-exit",i,code);if(code&&retry++<2){pending=TRUE;since=now+2000;}
+        BOOL failed=FALSE;
+        if(batch.job && !batch.draining){
+            if(changed||idle<500){
+                stop_batch(&batch);pending=TRUE;since=now;
+            }else{
+                enum BatchResult result=now-batch.launched>900000?BatchFailed:advance_batch(&batch,path,desktop,now);
+                if(result!=BatchRunning){stop_batch(&batch);failed=result==BatchFailed;}
             }
         }
-        if(pending&&path[0]&&!children[0]&&!children[1]&&idle>=1800&&now>=since+1000){
-            pending=FALSE;launched=now;children[0]=spawn_lane(path,0,desk,desktop,job);children[1]=spawn_lane(path,1,desk,desktop,job);
-            trace("launch",!!children[0],!!children[1]);if((!children[0]||!children[1])&&retry++<2){pending=TRUE;since=now+2000;}
+        if(batch.draining)reap_batch(&batch);
+        if(pending&&path[0]&&!batch.job&&idle>=1800&&now>=since+1000){
+            pending=FALSE;batch.launched=now;batch.job=render_job();
+            if(!batch.job || !spawn_lane(&batch,path,0,desktop)){
+                if(batch.job)stop_batch(&batch);
+                failed=TRUE;
+            }
         }
+        if(failed && retry<2){++retry;pending=TRUE;since=now+2000;}
         if(now-lastPrune>30000){prune();lastPrune=now;}
     }
 }
