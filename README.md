@@ -1,5 +1,20 @@
 # retas-patches
 
+## Stylos 2.6.0 · Windows x86 补丁下载
+
+| 补丁 | 用途 | 离线安装包 |
+|---|---|---|
+| [画布显示](better-canvas-display/README.md) | 环境设置中的原始、双线性、双立方缩放 | [下载画布补丁](packages/Stylos-Better-Canvas-Display-x86.zip) |
+| [中割对位](stylos/rotation-scale-inbetween/README.zh-CN.md) | 旋转、缩放、平移对位与四点预览 | [下载 v0.1](https://github.com/kevin-zf1123/retas-patches/releases/download/v0.1/Stylos-Inbetween-x86.zip) |
+| [运动检查](stylos/motion-check/README.md) | 首轮合成、并行预渲染、增量缓存 | [下载完整动检补丁](packages/Stylos-Motion-Check-x86.zip) |
+| [原生数位板与视图快捷键](stylos/tablet-native/README.md) | 绘王/Wacom 坐标、指针中心缩放、5° 旋转、登记多张到透光台 | [下载原生 WinTab 包](packages/Stylos-Native-Tablet-x86.zip) |
+| [Windows Ink](stylos/windows-ink/README.md) | 从系统笔事件读取笔压 | [下载 Ink 包](packages/Stylos-Windows-Ink-x86.zip) |
+| [高 DPI 界面](stylos/high-dpi/README.md) | 让 Windows 放大老版界面 | [下载 DPI 补丁](packages/Stylos-High-DPI-x86.zip) |
+
+只需要改善线条显示时，安装画布补丁即可。画布与中割 v0.1 的安装顺序任选；如需动检，请先安装动检。可选的 DPI 清单补丁最先安装。原生 WinTab 和 Ink 共用同名输入模块，请选择一种。安装器按具体构建校验，其他语言、版本及未经验证的公司自定义版请先核对各组件说明。
+
+## Rotation and scale inbetween alignment
+
 **Stylos 旋转缩放中割对位 · Rotation and scale inbetween alignment · Stylos 回転・拡縮を伴う中割りの位置合わせ**
 
 [下载 v0.1 / Download v0.1 / v0.1 をダウンロード](https://github.com/kevin-zf1123/retas-patches/releases/download/v0.1/Stylos-Inbetween-x86.zip)
