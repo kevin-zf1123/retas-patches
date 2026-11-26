@@ -6,6 +6,29 @@ using System.Linq;
 internal static class ShortcutBinding {
     const string Action = "LIGHTTABLEPALETTE_ALIGNMENT_MOVECENTER";
     static void Require(bool ok,string message) { if(!ok)throw new InvalidDataException(message); }
+    internal static byte[] RemoveManager(byte[] bytes,char key) {
+        Require(bytes.Length>=26 && BitConverter.ToInt32(bytes,0)==0x43524143 &&
+            Encoding.ASCII.GetString(bytes,10,4)=="SLTS","无效的快捷键配置。");
+        int end=checked(18+BitConverter.ToInt32(bytes,14)),rows=BitConverter.ToInt32(bytes,18);
+        Require(rows>=0 && rows<65536 && end>=22 && end<=bytes.Length-4,"无效的快捷键命令区。");
+        for(int p=22,i=0;i<rows;i++){
+            Require(p<=end-10,"快捷键记录截断。");
+            int length=checked(4+BitConverter.ToInt32(bytes,p)),nameSize=BitConverter.ToUInt16(bytes,p+4);
+            int k=checked(p+6+nameSize);
+            if(k+4>p+length || length<10 || length>end-p)throw new InvalidDataException("无效的快捷键记录。");
+            if(Encoding.ASCII.GetString(bytes,p+6,nameSize)=="EDIT_PLUGIN_MANAGER" &&
+                BitConverter.ToUInt16(bytes,k)==key && BitConverter.ToUInt16(bytes,k+2)==3){
+                var result=new byte[bytes.Length-length];
+                Buffer.BlockCopy(bytes,0,result,0,p);
+                Buffer.BlockCopy(bytes,p+length,result,p,bytes.Length-p-length);
+                BitConverter.GetBytes(end-18-length).CopyTo(result,14);
+                BitConverter.GetBytes(rows-1).CopyTo(result,18);
+                return result;
+            }
+            p+=length;
+        }
+        return bytes;
+    }
     internal static byte[] Bind(byte[] b,out char key) { return Bind(b,out key,Action,7,"IJKUO"); }
     internal static byte[] Bind(byte[] b,out char key,string command,int modifiers,string candidates) {
         Func<int,int> i32=offset=>BitConverter.ToInt32(b,offset);
