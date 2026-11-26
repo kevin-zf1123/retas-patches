@@ -1,3 +1,26 @@
-/dist/
-.DS_Store
-__pycache__/
+**
+!/.gitignore
+!/LICENSE
+!/README.md
+
+# Stylos inbetween alignment
+!/stylos/
+!/stylos/rotation-scale-inbetween/
+!/stylos/rotation-scale-inbetween/*.c
+!/stylos/rotation-scale-inbetween/*.h
+!/stylos/rotation-scale-inbetween/Install.cs
+!/stylos/rotation-scale-inbetween/build.py
+!/stylos/rotation-scale-inbetween/progress.rc
+!/stylos/rotation-scale-inbetween/README*.md
+!/stylos/rotation-scale-inbetween/releases/
+!/stylos/rotation-scale-inbetween/releases/*.md
+
+# Canvas display source, build recipe and installer
+!/better-canvas-display/
+!/better-canvas-display/README.md
+!/better-canvas-display/build.py
+!/better-canvas-display/Install.cs
+!/better-canvas-display/src/
+!/better-canvas-display/src/*.c
+!/better-canvas-display/src/*.S
+!/better-canvas-display/src/*.def
