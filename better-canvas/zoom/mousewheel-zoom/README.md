@@ -1,5 +1,5 @@
 # 指针中心滚轮缩放
 
-滚轮每格改变 5 个百分点，保留高精度滚轮的剩余滚动量。缩放前记录指针下的原画坐标，缩放后再校正视口位置，支持旋转和镜像的画布。MousewheelZoom.c 实现倍率和定位，ZoomCalls.S 适配原生 x86 视图函数。
+从插件管理器安装 Stylos-Mousewheel-Zoom-x86.zip，可单独启用或停用。滚动一格改变 5 个百分点，缩放围绕指针下的画稿坐标，支持旋转、镜像和高精度滚轮。
 
-与旋转快捷键一起由 [原生输入模块的 Build.ps1](../../../stylos/tablet-native/Build.ps1) 构建。[安装包](../../../packages/Stylos-Native-Tablet-x86.zip)
+MousewheelZoom.c 实现缩放和定位，ZoomCalls.S 适配 Stylos x86 视图函数，共享宿主消息入口由 Better Canvas 提供。旧的原生数位板组件仍可独立使用。
