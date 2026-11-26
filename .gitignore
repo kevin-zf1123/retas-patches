@@ -53,3 +53,13 @@
 !/stylos/motion-check/src/motion.asm
 !/stylos/motion-check/src/stubs.asm
 !/better-canvas-display/verify.py
+
+# Published offline installers only
+!/packages/
+!/packages/Stylos-Better-Canvas-Display-x86.zip
+!/packages/Stylos-High-DPI-x86.zip
+!/packages/Stylos-Motion-Check-x86.zip
+!/packages/Stylos-Native-Tablet-x86.zip
+!/packages/Stylos-Windows-Ink-x86.zip
+!/packages/INSTALL.zh-CN.md
+!/packages/build_collection.py
