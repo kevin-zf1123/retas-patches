@@ -10,8 +10,6 @@ void RegisterStylosShortcut(void *entry, void *link, int command, const char *na
 int CallStylosCommand(void *entry, void *object, int command);
 void RefreshStylosShortcuts(void *entry, void *settings);
 BOOL RotateStylosCanvas(HWND canvas, int degrees);
-void AddStylosFilterPreference(HWND child);
-void RefreshStylosFilter(HWND frame);
 
 enum {
     Application = 0x7095c8,
@@ -314,12 +312,6 @@ BOOL DispatchStylosShortcut(const MSG *message)
 static LRESULT CALLBACK frame_message(HWND window, UINT message, WPARAM wparam, LPARAM lparam,
     UINT_PTR id, DWORD_PTR data)
 {
-    if (message == WM_ENTERIDLE && wparam == MSGF_DIALOGBOX)
-        AddStylosFilterPreference((HWND)lparam);
-    if (message == WM_APP+0x4f8) {
-        RefreshStylosFilter(window);
-        return 0;
-    }
     if (message == WM_COMMAND && !lparam) {
         int command = LOWORD(wparam);
         if (command >= RotateLeft && command <= RegisterPreview) {

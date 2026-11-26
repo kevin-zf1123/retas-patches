@@ -16,14 +16,14 @@
 !/stylos/rotation-scale-inbetween/releases/*.md
 
 # Canvas display source, build recipe and installer
-!/better-canvas-display/
-!/better-canvas-display/README.md
-!/better-canvas-display/build.py
-!/better-canvas-display/Install.cs
-!/better-canvas-display/src/
-!/better-canvas-display/src/*.c
-!/better-canvas-display/src/*.S
-!/better-canvas-display/src/*.def
+!/better-canvas/zoom/anti-alias/
+!/better-canvas/zoom/anti-alias/README.md
+!/better-canvas/zoom/anti-alias/build.py
+!/better-canvas/zoom/anti-alias/Install.cs
+!/better-canvas/zoom/anti-alias/src/
+!/better-canvas/zoom/anti-alias/src/*.c
+!/better-canvas/zoom/anti-alias/src/*.S
+!/better-canvas/zoom/anti-alias/src/*.def
 
 # Other maintained Stylos patches
 !/stylos/tablet-native/
@@ -52,7 +52,7 @@
 !/stylos/motion-check/src/scheduler.inc
 !/stylos/motion-check/src/motion.asm
 !/stylos/motion-check/src/stubs.asm
-!/better-canvas-display/verify.py
+!/better-canvas/zoom/anti-alias/verify.py
 
 # Published offline installers only
 !/packages/
@@ -63,3 +63,21 @@
 !/packages/Stylos-Windows-Ink-x86.zip
 !/packages/INSTALL.zh-CN.md
 !/packages/build_collection.py
+
+# Shared canvas input lifecycle, rotation and pointer-centred wheel zoom
+!/better-canvas/
+!/better-canvas/zoom/
+!/better-canvas/CanvasView.h
+!/better-canvas/CanvasInput.c
+!/better-canvas/README.md
+!/better-canvas/zoom/mousewheel-zoom/
+!/better-canvas/zoom/mousewheel-zoom/*.c
+!/better-canvas/zoom/mousewheel-zoom/*.S
+!/better-canvas/zoom/mousewheel-zoom/README.md
+!/better-canvas/rotation-shortcuts/
+!/better-canvas/rotation-shortcuts/*.c
+!/better-canvas/rotation-shortcuts/*.S
+!/better-canvas/rotation-shortcuts/README.md
+!/better-canvas/zoom/anti-alias/src/Pages.rc
+!/stylos/rotation-scale-inbetween/ratio_controls.rcinc
+!/stylos/rotation-scale-inbetween/ShortcutBinding.cs

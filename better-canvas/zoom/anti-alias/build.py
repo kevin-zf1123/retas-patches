@@ -120,6 +120,6 @@ def main():
         subprocess.run([args.csc,'/nologo','/optimize+','/target:winexe','/platform:x86','/r:System.Windows.Forms.dll',
             '/resource:'+str(dll)+',Filter','/resource:'+str(blob)+',Delta','/out:'+str(setup),str(ROOT/'Install.cs')],check=True)
         with zipfile.ZipFile(out/'Stylos-Better-Canvas-Display-x86.zip','w',zipfile.ZIP_DEFLATED) as z:
-            z.write(setup,setup.name);z.write(ROOT/'README.md','README.md');z.write(ROOT.parent/'LICENSE','LICENSE')
+            z.write(setup,setup.name);z.write(ROOT/'README.md','README.md');z.write(ROOT.parents[2]/'LICENSE','LICENSE')
 
 if __name__=='__main__':main()
