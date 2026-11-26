@@ -2,6 +2,7 @@
 !/.gitignore
 !/LICENSE
 !/README.md
+!/CMakeLists.txt
 
 # Stylos inbetween alignment
 !/stylos/
@@ -91,6 +92,7 @@
 !/plugin-manager/stylos/Manager.cs
 !/plugin-manager/stylos/registry.json
 !/plugin-manager/stylos/build_manager.py
+!/plugin-manager/stylos/component_package.py
 !/plugin-manager/stylos/build_host_packages.py
 !/plugin-manager/stylos/README.md
 !/plugin-manager/stylos/MIDPOINT.md

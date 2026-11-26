@@ -28,7 +28,9 @@ def main():
     cli.add_argument('--host',type=Path,action='append',required=True)
     cli.add_argument('--inbetween',type=Path,required=True,help='Released StylosInbetween.exe v0.1')
     cli.add_argument('--out',type=Path,required=True)
-    cli.add_argument('--motion-dll',type=Path,help='Use the rebuilt motion-check runtime')
+    sources=cli.add_mutually_exclusive_group()
+    sources.add_argument('--components',type=Path,help='Use the eight freshly built component ZIPs')
+    sources.add_argument('--motion-dll',type=Path,help='Use the rebuilt motion-check runtime')
     cli.add_argument('--zig',default='zig')
     cli.add_argument('--csc',default=str(Path(os.environ['WINDIR'])/'Microsoft.NET/Framework/v4.0.30319/csc.exe'))
     cli.add_argument('--manager-assets',type=Path,help='Also retain the intermediate manager assets')
@@ -108,6 +110,6 @@ def main():
         require(runtime[pe_offset:pe_offset+4]==b'PE\0\0','Expected linked PE runtime')
         struct.pack_into('<I',runtime,pe_offset+8,0)
         (assets/FILTER).write_bytes(runtime)
-        build_manager(argparse.Namespace(assets=assets,out=out,csc=args.csc,motion_dll=args.motion_dll))
+        build_manager(argparse.Namespace(assets=assets,out=out,csc=args.csc,motion_dll=args.motion_dll,components=args.components))
 
 if __name__=='__main__':main()
