@@ -13,3 +13,4 @@ if($ReleaseDll){
 }
 $manifest | ConvertTo-Json -Compress -Depth 20 | Set-Content -LiteralPath (Join-Path $OutputDirectory 'versions.json') -Encoding ASCII
 foreach($f in 'MotionSetup.ps1','安装完整动检补丁.cmd','还原动检补丁.cmd','README.md'){Copy-Item -LiteralPath (Join-Path $PSScriptRoot $f) -Destination $OutputDirectory -Force}
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../../retas-devkit/ManagePlugin.ps1') -Destination $OutputDirectory -Force
