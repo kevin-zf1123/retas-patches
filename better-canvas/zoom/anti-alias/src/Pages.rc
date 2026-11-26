@@ -1,0 +1,9 @@
+#pragma code_page(65001)
+#include <windows.h>
+301 DIALOG 0,0,226,188
+STYLE WS_CHILD | DS_CONTROL | DS_SETFONT
+EXSTYLE WS_EX_CONTROLPARENT
+FONT 9, "Microsoft YaHei UI"
+BEGIN
+#include "../../../../stylos/rotation-scale-inbetween/ratio_controls.rcinc"
+END

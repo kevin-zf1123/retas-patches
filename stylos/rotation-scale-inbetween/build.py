@@ -59,7 +59,7 @@ with tempfile.TemporaryDirectory() as tmp:
     feature = work/'alignment.bin'
     feature.write_bytes(struct.pack('<III',symbol('align_pair'),symbol('stylos_links'),symbol('preferences_modal'))+blob.read_bytes())
     run('mcs','-sdk:4.5','-platform:x86','-optimize+','-r:System.Windows.Forms','-resource:'+str(feature)+',alignment',
-        '-out:'+str(out/'StylosInbetween.exe'),src/'Install.cs')
+        '-out:'+str(out/'StylosInbetween.exe'),src/'Install.cs',src/'ShortcutBinding.cs')
 
 with zipfile.ZipFile(out/'Stylos-Inbetween-x86.zip','w',compression=zipfile.ZIP_DEFLATED) as package:
     package.write(out/'StylosInbetween.exe','StylosInbetween.exe')
