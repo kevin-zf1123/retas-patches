@@ -55,27 +55,7 @@ BOOL canvas_is_active(HWND canvas)
         && (HWND)SendMessageA(GetParent(canvas), WM_MDIGETACTIVE, 0, 0) == canvas;
 }
 
-static LRESULT CALLBACK wheel_message(int code, WPARAM operation, LPARAM data)
-{
-    if (code >= 0 && (operation & PM_REMOVE) && data && !handling_input) {
-        MSG *message = (MSG *)data;
-        handling_input = TRUE;
-        if (!native_shortcuts && message->hwnd)
-            native_shortcuts = InstallStylosShortcuts(canvas_image, message->hwnd);
-        if ((message->message == WM_MOUSEWHEEL && zoom_canvas(message))
-            || (native_shortcuts && (message->message == WM_KEYDOWN || message->message == WM_SYSKEYDOWN)
-                && DispatchStylosShortcut(message))
-            || (!native_shortcuts && message->message == WM_KEYDOWN && rotate_from_key(message)))
-            message->message = WM_NULL;
-        if (message->message == WM_PAINT) {
-            prepare_rotation_buttons(message->hwnd);
-        }
-        handling_input = FALSE;
-    }
-    return CallNextHookEx(wheel_hook, code, operation, data);
-}
-
-void InstallStylosLinearZoom(void)
+static void initialize_view(void)
 {
     static BOOL checked;
     if (checked)
@@ -92,8 +72,45 @@ void InstallStylosLinearZoom(void)
         if (remove_subclass && call_subclass)
             set_subclass = (void *)GetProcAddress(common, "SetWindowSubclass");
     }
-    HMODULE module;
-    // Keep the callback valid even if Stylos releases its WinTab library before exit.
-    if (GetModuleHandleExA(5, (LPCSTR)wheel_message, &module))
-        wheel_hook = SetWindowsHookExA(WH_GETMESSAGE, wheel_message, NULL, GetCurrentThreadId());
 }
+
+void DispatchCanvasInput(MSG *message, BOOL wheel, BOOL rotate)
+{
+    if(handling_input || (!wheel && !rotate))return;
+    initialize_view();
+    if(!canvas_image)return;
+    handling_input=TRUE;
+        if (rotate && !native_shortcuts && message->hwnd)
+            native_shortcuts = InstallStylosShortcuts(canvas_image, message->hwnd);
+        if ((wheel && message->message == WM_MOUSEWHEEL && zoom_canvas(message))
+            || (rotate && native_shortcuts && (message->message == WM_KEYDOWN || message->message == WM_SYSKEYDOWN)
+                && DispatchStylosShortcut(message))
+            || (rotate && !native_shortcuts && message->message == WM_KEYDOWN && rotate_from_key(message)))
+            message->message = WM_NULL;
+        if (rotate && message->message == WM_PAINT) {
+            prepare_rotation_buttons(message->hwnd);
+        }
+    handling_input=FALSE;
+}
+
+#ifndef STYLOS_MANAGER_INPUT
+static LRESULT CALLBACK wheel_message(int code,WPARAM operation,LPARAM data)
+{
+    if(code>=0 && (operation & PM_REMOVE) && data)DispatchCanvasInput((MSG *)data,TRUE,TRUE);
+    return CallNextHookEx(wheel_hook,code,operation,data);
+}
+void InstallStylosLinearZoom(void)
+{
+    static BOOL done;
+    if(done)return;
+    done=TRUE;
+    HMODULE filter=GetModuleHandleW(L"StylosCanvasFilter.dll");
+    BOOL (__cdecl *managed)(void)=filter?(void *)GetProcAddress(filter,"CanvasInputOwned"):NULL;
+    if(managed && managed())return;
+    initialize_view();
+    if(!canvas_image)return;
+    HMODULE module;
+    if(GetModuleHandleExA(5,(LPCSTR)wheel_message,&module))
+        wheel_hook=SetWindowsHookExA(WH_GETMESSAGE,wheel_message,NULL,GetCurrentThreadId());
+}
+#endif

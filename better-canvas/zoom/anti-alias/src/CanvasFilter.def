@@ -3,3 +3,5 @@ EXPORTS
   "_CanvasScale@28" = "CanvasScale@28"
   "_CanvasRotate@28" = "CanvasRotate@28"
   CanvasPreferences = "CanvasPreferences@12"
+  MidpointPreferences = "MidpointPreferences@12"
+  PluginManagerMessage = "PluginManagerMessage@16"

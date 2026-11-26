@@ -66,15 +66,23 @@ internal static class Install {
                     if(String.Equals(dir,Path.GetDirectoryName(p.MainModule.FileName),StringComparison.OrdinalIgnoreCase))throw new IOException("请先退出该目录运行的 Stylos 及后台渲染进程。");
                 }
             byte[] old=File.ReadAllBytes(path), next=Patched(old), dll=Resource("Filter");
+#if MIDPOINT
+            string profile=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),@"CELSYS\RETAS STUDIO\Stylos\2.0\Preference\shortcut.rac");
+            if(!File.Exists(profile))throw new IOException("请先打开并退出一次 Stylos，再安装中割快捷键。");
+            char key; byte[] previousKeys=File.ReadAllBytes(profile), keys=ShortcutBinding.Bind(previousKeys,out key);
+#endif
             string module=Path.Combine(dir,"StylosCanvasFilter.dll");
             byte[] prior=File.Exists(module)?File.ReadAllBytes(module):null;
-            if(prior!=null && !prior.SequenceEqual(dll) && Hash(prior)!="954501534c34b0a1fa664e38c575d57f0566620bb4c779cf7a67a235d30d2339" && Hash(prior)!="0b138b279152def0e60133e38aca35d5fa037e7bd0cb3a881897c10cfd0749f2")
+            if(prior!=null && !prior.SequenceEqual(dll) && Hash(prior)!="0b76e81d55a09008465eefdb2f5801e5a5a5d57c13a808f825b76b439053293a" && Hash(prior)!="954501534c34b0a1fa664e38c575d57f0566620bb4c779cf7a67a235d30d2339" && Hash(prior)!="0b138b279152def0e60133e38aca35d5fa037e7bd0cb3a881897c10cfd0749f2")
                 throw new IOException("已有未知版本的 StylosCanvasFilter.dll，已保留。");
             if(next!=null)Backup(path,old);
             if(prior!=null && !prior.SequenceEqual(dll))Backup(module,prior);
             Put(module,dll,prior);
             try {if(next!=null)Put(path,next,old);}
             catch {if(prior!=null)Put(module,prior,dll);else if(File.Exists(module)&&File.ReadAllBytes(module).SequenceEqual(dll))File.Delete(module);throw;}
+#if MIDPOINT
+            Put(profile,keys,previousKeys);
+#endif
         }
     }
     [STAThread] static int Main(string[] args) {
@@ -88,7 +96,7 @@ internal static class Install {
             }else if(args.Length==2 && args[0]=="--install")path=args[1];
             else throw new ArgumentException("StylosCanvasSetup --install <Stylos.exe>");
             Run(path);
-            if(args.Length==0)MessageBox.Show("已安装。打开 编辑 → 设置 → 环境设置 → 画布缩放。","Stylos 画布显示");
+            if(args.Length==0)MessageBox.Show("已安装。打开 编辑 → 设置 → 环境设置，在左侧展开“插件”。","Stylos");
             return 0;
         }catch(Exception ex){if(args.Length==0)MessageBox.Show(ex.Message,"安装失败");else Console.Error.WriteLine(ex.Message);return 1;}
     }

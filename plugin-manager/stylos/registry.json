@@ -1,0 +1,10 @@
+{"schema":1,"host":"Stylos 2.6.0 x86","plugins":[
+ {"id":"high-dpi","bit":1,"name":"高 DPI 界面","package":"Stylos-High-DPI-x86.zip","page":0,"conflicts":0},
+ {"id":"motion-check","bit":2,"name":"运动检查与后台预渲染","package":"Stylos-Motion-Check-x86.zip","page":0,"conflicts":0},
+ {"id":"anti-alias","bit":4,"name":"画布显示","package":"Stylos-Better-Canvas-Display-x86.zip","page":1,"conflicts":0},
+ {"id":"inbetween","bit":8,"name":"中割对位","package":"Stylos-Inbetween-x86.zip","page":2,"conflicts":0},
+ {"id":"tablet-native","bit":16,"name":"原生数位板坐标修正","package":"Stylos-Native-Tablet-x86.zip","page":0,"conflicts":32},
+ {"id":"windows-ink","bit":32,"name":"Windows Ink 笔输入","package":"Stylos-Windows-Ink-x86.zip","page":0,"conflicts":16},
+ {"id":"rotation-shortcuts","bit":64,"name":"旋转快捷键与预览器登记","package":"Stylos-Rotation-Shortcuts-x86.zip","page":0,"conflicts":0},
+ {"id":"mousewheel-zoom","bit":128,"name":"指针中心滚轮缩放","package":"Stylos-Mousewheel-Zoom-x86.zip","page":0,"conflicts":0}
+]}

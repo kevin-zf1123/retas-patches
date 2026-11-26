@@ -1,3 +1,10 @@
+#ifdef __clang__
+#define ApplyStylosRotation _ApplyStylosRotation
+#define DisplayStylosRotation _DisplayStylosRotation
+#define CallStylosCommand _CallStylosCommand
+#define RegisterStylosShortcut _RegisterStylosShortcut
+#define RefreshStylosShortcuts _RefreshStylosShortcuts
+#endif
 .text
 .globl ApplyStylosRotation
 ApplyStylosRotation:

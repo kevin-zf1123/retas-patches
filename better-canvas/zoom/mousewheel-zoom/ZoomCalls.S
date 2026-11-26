@@ -1,3 +1,10 @@
+#ifdef __clang__
+#define ApplyStylosZoom _ApplyStylosZoom
+#define DisplayStylosZoom _DisplayStylosZoom
+#define GetStylosViewport _GetStylosViewport
+#define MapStylosPoint _MapStylosPoint
+#define ScrollStylosView _ScrollStylosView
+#endif
 .text
 
 # The application uses x86 thiscall: ECX holds the object and the callee pops its arguments.
