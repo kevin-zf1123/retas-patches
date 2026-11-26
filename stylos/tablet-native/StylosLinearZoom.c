@@ -381,7 +381,7 @@ void InstallStylosLinearZoom(void)
         return;
     image = candidate;
     HMODULE filter = GetModuleHandleW(L"StylosCanvasFilter.dll");
-    if (filter && !GetProcAddress(filter, "CanvasFrame")) {
+    if (filter && !GetProcAddress(filter, "CanvasPreferences")) {
         write_filter = (void *)GetProcAddress(filter, "SetCanvasFilter");
         if (write_filter)
             read_filter = (void *)GetProcAddress(filter, "GetCanvasFilter");
