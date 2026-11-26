@@ -81,3 +81,28 @@
 !/better-canvas/zoom/anti-alias/src/Pages.rc
 !/stylos/rotation-scale-inbetween/ratio_controls.rcinc
 !/stylos/rotation-scale-inbetween/ShortcutBinding.cs
+
+# Shared RETAS host entry registry and x86 adapter
+!/retas-devkit/
+!/retas-devkit/README.md
+!/retas-devkit/entries.json
+!/retas-devkit/retas.h
+!/retas-devkit/StylosApi.c
+!/retas-devkit/retas_client.py
+!/retas-devkit/stylos260.py
+
+# Stylos plugin lifecycle, manager UI and package registration
+!/plugin-manager/
+!/plugin-manager/stylos/
+!/plugin-manager/stylos/Bridge.c
+!/plugin-manager/stylos/Engine.cs
+!/plugin-manager/stylos/Manager.cs
+!/plugin-manager/stylos/registry.json
+!/plugin-manager/stylos/build_manager.py
+!/plugin-manager/stylos/build_host_packages.py
+!/plugin-manager/stylos/README.md
+!/plugin-manager/stylos/MIDPOINT.md
+!/packages/Stylos-Inbetween-x86.zip
+!/packages/Stylos-Rotation-Shortcuts-x86.zip
+!/packages/Stylos-Mousewheel-Zoom-x86.zip
+!/packages/Stylos-Plugin-Manager-x86.zip

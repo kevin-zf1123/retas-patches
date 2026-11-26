@@ -1,0 +1,13 @@
+{
+  "abi": 1, "transport": "win32-registered-message", "message": "RETAS.Stylos.DevKit.v1",
+  "target": "DrawFrameWnd", "timeoutMs": 1000,
+  "entries": [
+    {"id":1,"name":"version","result":"ABI version"},
+    {"id":2,"name":"capabilities","result":"bit mask: view=1, preferences=2, manager=4"},
+    {"id":3,"name":"canvas","result":"active cel HWND or zero"},
+    {"id":4,"name":"zoom","result":"basis points: 12000 means 120%; zero without a cel"},
+    {"id":5,"name":"rotation","result":"signed 32-bit degrees; check canvas to distinguish no cel"},
+    {"id":6,"name":"preferences","arg":"0=general, 1=canvas, 2=midpoint","result":"nonzero if the request was queued"},
+    {"id":7,"name":"manager","result":"nonzero if the manager-open request was queued"}
+  ]
+}
