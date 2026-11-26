@@ -1,6 +1,6 @@
 # Stylos inbetween alignment for Windows x86
 
-The [current installer](../../packages/Stylos-Inbetween-x86.zip) embeds the editor in Preferences → Plugins → Inbetween alignment. References below to the footer button describe the original v0.1 release.
+The current installer embeds the editor in Preferences → Plugins → Inbetween alignment. References below to the footer button describe the original v0.1 release.
 
 [中文](README.zh-CN.md) · [English](README.md) · [日本語](README.ja.md)
 

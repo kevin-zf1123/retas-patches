@@ -1,6 +1,6 @@
 # 画布旋转与预览器登记
 
-用此组件可以按固定角度转动画布视图，也可以把文件预览器里选中的图像登记到透光台。导入 `Stylos-Rotation-Shortcuts-x86.zip` 并应用，重新打开 Stylos 后生效。[下载组件](../../packages/Stylos-Rotation-Shortcuts-x86.zip)
+用此组件可以按固定角度转动画布视图，也可以把文件预览器里选中的图像登记到透光台。导入 `Stylos-Rotation-Shortcuts-x86.zip` 并应用，重新打开 Stylos 后生效。
 
 | 操作位置 | 默认按键 | 结果 |
 |---|---|---|

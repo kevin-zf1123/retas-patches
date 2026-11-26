@@ -4,18 +4,18 @@
 
 [八个插件的中文使用手册](docs/manuals/README.md)
 
-先安装 [Stylos 插件管理器](packages/Stylos-Plugin-Manager-x86.zip)，再从「编辑 → 设置 → 插件管理器…」选择组件 ZIP。管理器支持独立启停、卸载和版本校验。[安装说明](packages/INSTALL.zh-CN.md)
+先安装 Stylos 插件管理器（`Stylos-Plugin-Manager-x86.zip`），再从「编辑 → 设置 → 插件管理器…」选择组件 ZIP。管理器支持独立启停、卸载和版本校验。[安装说明](docs/manuals/README.md#安装和停用)
 
 | 插件 | 源码 | 组件包 |
 |---|---|---|
-| 旋转快捷键与预览器登记 | [rotation-shortcuts](better-canvas/rotation-shortcuts/) | [下载](packages/Stylos-Rotation-Shortcuts-x86.zip) |
-| 鼠标指针中心滚轮缩放 | [mousewheel-zoom](better-canvas/zoom/mousewheel-zoom/) | [下载](packages/Stylos-Mousewheel-Zoom-x86.zip) |
-| 双线性与双立方画布显示 | [anti-alias](better-canvas/zoom/anti-alias/) | [下载](packages/Stylos-Better-Canvas-Display-x86.zip) |
-| 中割对位 | [rotation-scale-inbetween](stylos/rotation-scale-inbetween/) | [下载](packages/Stylos-Inbetween-x86.zip) |
-| 摄影表运动检查、后台预渲染与缓存 | [motion-check](stylos/motion-check/) | [下载](packages/Stylos-Motion-Check-x86.zip) |
-| 原生绘王/Wacom 坐标修正 | [tablet-native](stylos/tablet-native/) | [下载](packages/Stylos-Native-Tablet-x86.zip) |
-| Windows Ink 笔输入 | [windows-ink](stylos/windows-ink/) | [下载](packages/Stylos-Windows-Ink-x86.zip) |
-| 高 DPI 界面 | [high-dpi](stylos/high-dpi/) | [下载](packages/Stylos-High-DPI-x86.zip) |
+| 旋转快捷键与预览器登记 | [rotation-shortcuts](better-canvas/rotation-shortcuts/) | `Stylos-Rotation-Shortcuts-x86.zip` |
+| 鼠标指针中心滚轮缩放 | [mousewheel-zoom](better-canvas/zoom/mousewheel-zoom/) | `Stylos-Mousewheel-Zoom-x86.zip` |
+| 双线性与双立方画布显示 | [anti-alias](better-canvas/zoom/anti-alias/) | `Stylos-Better-Canvas-Display-x86.zip` |
+| 中割对位 | [rotation-scale-inbetween](stylos/rotation-scale-inbetween/) | `Stylos-Inbetween-x86.zip` |
+| 摄影表运动检查、后台预渲染与缓存 | [motion-check](stylos/motion-check/) | `Stylos-Motion-Check-x86.zip` |
+| 原生绘王/Wacom 坐标修正 | [tablet-native](stylos/tablet-native/) | `Stylos-Native-Tablet-x86.zip` |
+| Windows Ink 笔输入 | [windows-ink](stylos/windows-ink/) | `Stylos-Windows-Ink-x86.zip` |
+| 高 DPI 界面 | [high-dpi](stylos/high-dpi/) | `Stylos-High-DPI-x86.zip` |
 
 **环境设置 → 插件** 保留原有插件分类。启用相应组件后，子项“画布显示”和“中割对位”分别显示各自配置。
 

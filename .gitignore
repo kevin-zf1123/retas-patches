@@ -54,15 +54,7 @@
 !/stylos/motion-check/src/stubs.asm
 !/better-canvas/zoom/anti-alias/verify.py
 
-# Published offline installers only
-!/packages/
-!/packages/Stylos-Better-Canvas-Display-x86.zip
-!/packages/Stylos-High-DPI-x86.zip
-!/packages/Stylos-Motion-Check-x86.zip
-!/packages/Stylos-Native-Tablet-x86.zip
-!/packages/Stylos-Windows-Ink-x86.zip
-!/packages/INSTALL.zh-CN.md
-!/packages/build_collection.py
+/packages/
 
 # Shared canvas input lifecycle, rotation and pointer-centred wheel zoom
 !/better-canvas/
@@ -102,10 +94,6 @@
 !/plugin-manager/stylos/build_host_packages.py
 !/plugin-manager/stylos/README.md
 !/plugin-manager/stylos/MIDPOINT.md
-!/packages/Stylos-Inbetween-x86.zip
-!/packages/Stylos-Rotation-Shortcuts-x86.zip
-!/packages/Stylos-Mousewheel-Zoom-x86.zip
-!/packages/Stylos-Plugin-Manager-x86.zip
 
 # Offline address declarations and linker
 !/retas-devkit/patch_layout.py
