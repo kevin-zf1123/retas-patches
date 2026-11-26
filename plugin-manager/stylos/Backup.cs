@@ -54,7 +54,7 @@ internal sealed partial class Engine {
                         // Registered releases have exact embedded archives. Adopted standalone installs have no receipt.
                         string release;
                         bool registered=source!="" && Catalog.packageVersions.TryGetValue(source,out release) && release!="";
-                        string bundled=registered?source:p.currentSha256;
+                        string bundled=registered?source:(p.id=="motion-check"?p.v0Sha256:p.currentSha256);
                         payload=Asset("pkg."+bundled);
                     }
                     string archive=Hash(payload);

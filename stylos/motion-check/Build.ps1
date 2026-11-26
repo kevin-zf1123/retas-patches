@@ -9,6 +9,11 @@ if($ReleaseDll){
 }else{
     & $Zig cc -target x86-windows-gnu -O2 -shared -s (Join-Path $PSScriptRoot 'src/engine.c') -o $module -lgdi32 -luser32 -ladvapi32 -lcabinet
     if($LASTEXITCODE){throw 'Renderer build failed'}
+    # Zig 0.13 stamps the linked image; normalize it for reproducible package identity.
+    $image=[IO.File]::ReadAllBytes($module)
+    $pe=[BitConverter]::ToInt32($image,60)
+    [Array]::Clear($image,$pe+8,4)
+    [IO.File]::WriteAllBytes($module,$image)
     $manifest.dll=(Get-FileHash -LiteralPath $module).Hash
 }
 $manifest | ConvertTo-Json -Compress -Depth 20 | Set-Content -LiteralPath (Join-Path $OutputDirectory 'versions.json') -Encoding ASCII

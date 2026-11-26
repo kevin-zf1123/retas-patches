@@ -231,7 +231,8 @@ internal sealed partial class Engine {
                 desired[k]=Layouts.Build(basis,k,s.enabled,workers[k],out regions);
                 layout[k]=regions;
             }
-            desired["MotionRender.dll"]=workers==null?null:Asset("motion");
+            var motion=Catalog.plugins.Single(p=>p.id=="motion-check");
+            desired["MotionRender.dll"]=workers==null?null:Asset(s.Label(motion)==motion.version?"motion":"motion-previous");
             int provider=s.enabled&48;
             var existingProvider=Digest(paths["wintab32.dll"]);
             if(provider!=0 || Catalog.known["native"].Contains(existingProvider) || Catalog.known["inktab"].Contains(existingProvider)){

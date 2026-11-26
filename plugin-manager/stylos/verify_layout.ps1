@@ -100,6 +100,20 @@ try {
         $e.Apply($s,$false)
         $e.Apply($s,$false)
         if ((Get-FileHash -LiteralPath $exe).Hash -ne $before.host) {throw 'Re-enable or repeat apply failed'}
+        # A 0.1.0 backup must restore the previous DLL, and a new install must replace it.
+        $motionPath=Join-Path $dir 'MotionRender.dll'
+        $fixed=(Get-FileHash -LiteralPath $motionPath).Hash
+        $oldMotion=$e.Import((Join-Path $PSScriptRoot 'releases/motion-check-0.1.0.zip'))
+        $e.Edit($s,$oldMotion,'install');$e.Apply($s,$false)
+        $oldHash=(Get-FileHash -LiteralPath $motionPath).Hash
+        if ($s.Label($motion) -ne '0.1.0' -or $oldHash -eq $fixed) {throw 'Motion rollback selected wrong runtime'}
+        $snapshot=Join-Path $dir 'old-motion.zip'
+        $e.BackupPlugin($snapshot,$motion.id)
+        $e.Edit($s,$e.Import((Join-Path $Packages $motion.package)),'install');$e.Apply($s,$false)
+        if ($s.Label($motion) -ne '0.1.1' -or (Get-FileHash -LiteralPath $motionPath).Hash -ne $fixed) {throw 'Motion upgrade failed'}
+        $e.RestoreBackup($snapshot)
+        $s=$e.Read()
+        if ($s.Label($motion) -ne '0.1.0' -or (Get-FileHash -LiteralPath $motionPath).Hash -ne $oldHash) {throw 'Motion backup restored wrong DLL'}
         foreach ($p in $catalog.plugins) {$e.Edit($s,$p,'uninstall')}
         $e.Apply($s,$false)
         if ($e.Read().installed -ne 0 -or (Get-FileHash -LiteralPath $exe).Hash -ne $catalog.targets[$family+':0']) {

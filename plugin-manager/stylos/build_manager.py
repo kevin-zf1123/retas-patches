@@ -45,13 +45,14 @@ def build(a):
             raise ValueError('Invalid component manifest: '+p['id'])
         if declaration['version']!=p['version'] or not re.fullmatch(r'(0|[1-9]\d*)(\.(0|[1-9]\d*)){2}',p['version']):
             raise ValueError('Invalid registered version for '+p['id'])
-        source=target if target.exists() else ROOT/'packages'/name
+        source=target if target.exists() and p['id']!='motion-check' else ROOT/'packages'/name
         payload={}
         with zipfile.ZipFile(source) as z:
             if z.testzip():raise ValueError(name)
             for key,member in {'native':'wintab32.dll','wacom':'Stylos-Wacom.cmd','inktab':'wintab32.dll','ink':'StylosInk.dll','motion':'MotionRender.dll'}.items():
                 if member in z.namelist() and ((p['bit']==16 and key in ('native','wacom')) or (p['bit']==32 and key in ('ink','inktab')) or (p['bit']==2 and key=='motion')):
-                    inputs[key]=z.read(member)
+                    override=getattr(a,'motion_dll',None) if key=='motion' else None
+                    inputs[key]=override.read_bytes() if override else z.read(member)
                     payload[member]=inputs[key]
         # Components are imported by the manager, including the previously standalone installers.
         payload['plugin.json']=manifest.replace(b'\r\n',b'\n')
@@ -85,12 +86,21 @@ def build(a):
                 data['packages'][digest]=p['id']
                 data['packageVersions'][digest]=label
         p['currentSha256']=key
+    # The old package is still installable/restorable, including its original engine bytes.
+    previous=(HERE/'releases/motion-check-0.1.0.zip').read_bytes()
+    if data['packages'].get(sha(previous))!='motion-check' or data['packageVersions'][sha(previous)]!='0.1.0':
+        raise ValueError('Unregistered historical motion package')
+    archives['pkg.'+sha(previous)]=previous
+    with zipfile.ZipFile(HERE/'releases/motion-check-0.1.0.zip') as z:
+        inputs['motion-previous']=z.read('MotionRender.dll')
+    if sha(inputs['motion'])!=originals['dll'].lower():
+        raise ValueError('Build MotionRender.dll with motion-check/Build.ps1 and supply --motion-dll')
     inputs['filter']=(assets/'StylosCanvasFilter.dll').read_bytes()
     known={'StylosCanvasFilter.dll':[sha(inputs['filter']),'cb3ef25efa8f0b97ad677e84d469ddd0befa8cf637ad10acb68045e78a49c65f','954501534c34b0a1fa664e38c575d57f0566620bb4c779cf7a67a235d30d2339','0b138b279152def0e60133e38aca35d5fa037e7bd0cb3a881897c10cfd0749f2','0b76e81d55a09008465eefdb2f5801e5a5a5d57c13a808f825b76b439053293a'],
            'native':[sha(inputs['native']),'b9a26c8fcfb266c116989288862d3e2ee7a6cfc16fcccfa31361cf1a4fc4bc1b','ad1b73bff1e37bd2d2b2a7e714dd208b969bcb32e8136e3df43aa2931761c4ef'],
            'inktab':[sha(inputs['inktab']),'a766df345a981f23bd51dd72bd8947ec919fd4b488f703ac6bf998d116ab16ee'],
            'StylosInk.dll':[sha(inputs['ink']),'9d19a67d22b97ac61015e56653d38b472545918ab0718785af261ed07f03a8a2'],
-           'MotionRender.dll':[sha(inputs['motion'])],'Stylos-Wacom.cmd':[sha(inputs['wacom'])]}
+           'MotionRender.dll':[sha(inputs['motion']),sha(inputs['motion-previous'])],'Stylos-Wacom.cmd':[sha(inputs['wacom'])]}
     known['wintab32.dll']=known['native']+known['inktab']
     for n in ('StylosRenderA.exe','StylosRenderB.exe'):
         known[n]=[v['workers'][n]['hash'].lower() for v in originals['variants']]
@@ -114,4 +124,5 @@ def build(a):
 if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--assets',type=Path,required=True);p.add_argument('--out',type=Path,required=True)
     p.add_argument('--csc',default=str(Path(os.environ['WINDIR'])/'Microsoft.NET/Framework/v4.0.30319/csc.exe'))
+    p.add_argument('--motion-dll',type=Path,help='Rebuilt motion-check runtime for the current release')
     build(p.parse_args())

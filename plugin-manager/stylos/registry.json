@@ -32,13 +32,16 @@
       "manifest": "stylos/motion-check/plugin.json",
       "legacyPackageSha256": "e5c53692e553fdf03abe59c7491432c765b46758555fdcb5c5ecb1046f1e07e6",
       "v0Sha256": "5f010c32c077921431bb7eebc5cd21544288837fbeeeafd835a06aeb2abe00ef",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "registeredVersions": {
         "v0": [
           "5f010c32c077921431bb7eebc5cd21544288837fbeeeafd835a06aeb2abe00ef"
         ],
         "0.1.0": [
           "f4cb8bdfe2beec0fdec65ed70bcca99865d21df512e169e3dffe40b39ca20e4a"
+        ],
+        "0.1.1": [
+          "4378548a4f3b57aa3aca34d89d98f71e96ac29cb3d4d4696b38dcf91ffb7bb58"
         ]
       }
     },
@@ -172,5 +175,5 @@
     ".idata",
     ".ltalign"
   ],
-  "managerVersion": "0.1.0"
+  "managerVersion": "0.1.1"
 }
