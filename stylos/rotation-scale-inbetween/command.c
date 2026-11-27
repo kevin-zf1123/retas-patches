@@ -11,10 +11,30 @@ typedef void (MEMBER *RowValue)(Byte *,int);
 typedef double (MEMBER *GetLength)(const void *,int);
 typedef void (MEMBER *SetLength)(void *,double,int,double);
 
+/* The installer extends each light-table row with its own fractional values. */
+static PoseResidual *residual(Byte *row) { return (PoseResidual *)(row+0xe0); }
+static int fractional_rotation_available(void) {
+    HMODULE dll=IMPORT(Module,__typeof__(&GetModuleHandleA))("rcwCmn.dll");
+    if(!dll)return 0;
+    const Byte *base=(const Byte *)dll;
+    const IMAGE_NT_HEADERS32 *pe=(const IMAGE_NT_HEADERS32 *)(base+((const IMAGE_DOS_HEADER *)base)->e_lfanew);
+    const Byte *rotate=system_api("rcwCmn.dll","?CreateRotationImage@RCVOffscreen@@UAEXAAV1@HH@Z");
+    const void *const *vtable=system_api("rcwCmn.dll","??_7RCVOffscreen32Bit@@6B@");
+    if(pe->FileHeader.TimeDateStamp!=0x4eb9f91b || pe->OptionalHeader.SizeOfImage!=0xd7000 ||
+       rotate!=base+0x5cdd0 || !vtable || vtable[8]!=rotate ||
+       *(const Byte *const *)(rotate+6)!=base+0x8e9ca)return 0;
+    /* Verify the full frame setup used by precision.S, excluding the relocated
+       exception-handler address verified above. */
+    unsigned hash=2166136261u;
+    for(int i=0;i<0x5e;++i)
+        if(i<6 || i>=10)hash=(hash^rotate[i])*16777619u;
+    return hash==0x9249f9c2;
+}
+
 static Pose read_pose(Byte *row) {
     Pose p;
-    p.scale = *(int *)(row+0x98)/100.0;
-    p.angle = *(int *)(row+0x9c);
+    p.scale=(*(int *)(row+0x98)+(double)residual(row)->percent)/100.;
+    p.angle=*(int *)(row+0x9c)+(double)residual(row)->degrees;
     p.shift.x = IMPORT(LengthGet,GetLength)(row+0x68,1);
     p.shift.y = IMPORT(LengthGet,GetLength)(row+0x80,1);
     return p;
@@ -25,17 +45,31 @@ static int usable(Pose p) {
         p.shift.x>=-1e8 && p.shift.x<=1e8 && p.shift.y>=-1e8 && p.shift.y<=1e8;
 }
 
-static void write_pose(Byte *row,Pose p,int angle) {
+static void write_linear(Byte *row,double scale,double angle) {
+    int percent,degrees;
+    PoseResidual next=split_linear(scale,angle,&percent,&degrees);
+    if(percent==*(int *)(row+0x98) && degrees==*(int *)(row+0x9c) &&
+       next.percent==residual(row)->percent && next.degrees==residual(row)->degrees)return;
+    *(int *)(row+0x98)=percent;
+    *(int *)(row+0x9c)=degrees;
+    *residual(row)=next;
+    /* Both stock setters rebuild the entire bitmap. Commit both components
+       before the one rebuild, including a change of just the fraction. */
+    ((void (MEMBER *)(Byte *))address(RebuildRow))(row);
+}
+
+static void write_pose(Byte *row,Pose p) {
     for (int axis=0;axis<2;++axis) {
         /* RCLength is a 24-byte value object; copy the source DPI before setting centimetres. */
         unsigned words[6];
         const unsigned *old=(const unsigned *)(row+(axis ? 0x80 : 0x68));
+        double value=axis?p.shift.y:p.shift.x;
+        if(IMPORT(LengthGet,GetLength)(old,1)==value)continue;
         for (int i=0;i<6;++i) words[i]=old[i];
-        IMPORT(LengthSet,SetLength)(words,axis?p.shift.y:p.shift.x,1,0);
+        IMPORT(LengthSet,SetLength)(words,value,1,0);
         ((RowLength)address(axis ? SetY : SetX))(row,words);
     }
-    ((RowValue)address(SetScale))(row,nearest(p.scale*100));
-    ((RowValue)address(SetAngle))(row,angle);
+    write_linear(row,p.scale,p.angle);
 }
 
 typedef Byte *(*AppGetter)(void);
@@ -103,7 +137,7 @@ void align_pair(Byte *a, Byte *b, Byte *palette) {
                 explain(owner,L"拾取期间参考图的变换发生变化，请重新点选。");return;
             }
         }
-        int result=fit_four(pick.points,n,d,lock,&left,&right);
+        int result=fit_four(pick.points,n,d,lock,fractional_rotation_available(),&left,&right);
         if(result!=FIT_OK){
             explain(owner,result==FIT_LOCK?L"测得的倍率比无法用整数百分比精确表示。请关闭倍率比锁定后重试。":
                 result==FIT_SEGMENT?L"同一张原画上的两个特征点必须分开。":L"两段特征的长度比超出透光台可表示的范围。");
@@ -114,7 +148,7 @@ void align_pair(Byte *a, Byte *b, Byte *palette) {
         if(!usable(left) || !usable(right)){
             explain(owner,L"结果超出透光台的变换范围。可用倍率为 5% 至 1600%。");return;
         }
-        if(!native_poses(from,to,n,d,lock,&left,&right)){
+        if(!fractional_rotation_available() && !native_poses(from,to,n,d,lock,&left,&right)){
             explain(owner,L"此端点无法同时保持 100% 倍率和精确倍率比。可在环境设置中取消倍率比锁定。");return;
         }
     }
@@ -122,7 +156,7 @@ void align_pair(Byte *a, Byte *b, Byte *palette) {
         explain(owner,L"取整后的结果超出透光台的变换范围。");
         return;
     }
-    write_pose(a,left,(int)left.angle);
-    write_pose(b,right,(int)right.angle);
+    write_pose(a,left);
+    write_pose(b,right);
     ((RowValue)address(Refresh))(palette,0);
 }

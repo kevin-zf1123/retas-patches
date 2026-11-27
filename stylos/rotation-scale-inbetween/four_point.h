@@ -20,7 +20,7 @@ static int paper_to_client(Point origin,Point h,Point v,double step,Point paper,
     return __builtin_fabs(client->x)<1e8 && __builtin_fabs(client->y)<1e8;
 }
 enum { FIT_OK, FIT_SEGMENT, FIT_RANGE, FIT_LOCK };
-static int fit_four(const Point p[4],unsigned n,unsigned d,int lock,Pose *left,Pose *right) {
+static int fit_four(const Point p[4],unsigned n,unsigned d,int lock,int fractional,Pose *left,Pose *right) {
     Point av={p[1].x-p[0].x,p[1].y-p[0].y}, bv={p[3].x-p[2].x,p[3].y-p[2].y};
     if(!(av.x*av.x+av.y*av.y>1e-16) || !(bv.x*bv.x+bv.y*bv.y>1e-16))return FIT_SEGMENT;
     Point q=quotient(bv,av), ma=midpoint(p[0],p[1]), mb=midpoint(p[2],p[3]);
@@ -32,6 +32,7 @@ static int fit_four(const Point p[4],unsigned n,unsigned d,int lock,Pose *left,P
     interpolate(transform,identity,n,d,left,right);
     double a=left->scale*100,b=right->scale*100;
     if(!(a>=5 && a<=1600 && b>=5 && b<=1600))return FIT_RANGE;
+    if(fractional)return FIT_OK;
     Point target;
     if(!n)target=ma;
     else if(n==d)target=mb;

@@ -26,7 +26,7 @@ In the **对位预览** panel, select the start or end reference by its light-ta
 
 Double-click the canvas, press Enter or click **确定** to keep the result. Escape or **取消** restores both references to their transforms before four-point picking. Enable **四点对位后跳过预览** in the ratio preferences to apply immediately on the fourth click.
 
-The picker uses the native view-to-paper conversion and accounts for existing transforms on each reference. It shows one reference at a time and restores the previous visibility and opacity after picking. The rounded native transforms keep the two segment midpoints together. Unrepresentable rotations or scales can leave a symmetric endpoint error.
+The picker uses the native view-to-paper conversion and accounts for existing transforms on each reference. It shows one reference at a time and restores the previous visibility and opacity after picking. Picking and preview use the same floating-point reference transforms.
 
 In Preferences, enable **每次对位前点选四个特征点** to start four-point picking with any quick ratio. Combine it with **直接执行 1/2，不显示比例窗口** to go straight from the shortcut to picking four points at half progress.
 
@@ -42,12 +42,12 @@ The installer adds the shortcut to the user's native `shortcut.rac`. If I is occ
 
 For relative similarity T from row A to row B and progress t, the requested row transforms are T^t and T^(t−1). Fractional scaling uses k^t. Angles follow the shortest rotation, retaining the input sign at exactly 180 degrees. Coordinates use each sheet's centre and a common physical unit. Absolute document pixels are never resampled by the command.
 
-Stylos stores scale as an integer percentage from 5 to 1600 and rotation as whole degrees. Both rows receive the same angular rounding. By default the command chooses nearby integer scales and retains the exact relative scale whenever that costs at most one percentage point per row. It compensates translation using the actual rounded values to keep the first sheet's centre aligned with its counterpart.
+On the supported Stylos 2.6 Chinese imaging library, both references retain fractional angles and scale percentages in memory. Translation uses double-precision centimetres. A one-degree relative rotation at half progress displays at −0.5° and +0.5°. Native numeric controls and saved light-table settings still use whole degrees and percentages. Reloading those settings restores the integer values.
 
-Select **锁定两张参考图的精确倍率比** in Preferences when manually aligned features must remain coincident. The command then uses the nearest supported pair of percentages with the original ratio. Relatively prime percentages can leave few choices. For example, 147% and 100% can only retain their exact ratio in multiples of 147 and 100. If the lock and an identity endpoint cannot both be represented, the dialog reports this before the command writes either row.
+Other imaging library builds use the integer display path. On that path, **锁定两张参考图的精确倍率比** selects integer percentages that preserve the original scale ratio.
 
 ## Compatibility and build
 
 The installer resolves the registered midpoint command through both dispatch tables and verifies the two-row selection, setters, imports, refresh and return path. It prepares the updated executable in the installation directory and atomically replaces Stylos.exe. Running it again recognises the installed version and can repair the shortcut binding. Its supported layout is the unsigned, non-relocatable PE32 Stylos 2.6 implementation. A changed command implementation, incompatible image layout or unrecognised installed patch produces an error. The installer also upgrades the previous English fraction-dialog, Chinese quick-ratio, four-point and crosshair-preview releases after verifying their command code, bindings and entry points. The installer preserves other shortcuts and compatible local executable edits.
 
-Build from the repository root with `python3 stylos/rotation-scale-inbetween/build.py dist/stylos/rotation-scale-inbetween`. The build uses Python 3, Clang/LLVM, LLD, MinGW-w64 windres and Mono mcs. The deployed interpolation code uses scalar x86 and x87. The separate `check.c` validation program compares it to a spiral-centre reference and times the interpolation of both rows with Windows thread cycle counters.
+Build from the repository root with `python3 stylos/rotation-scale-inbetween/build.py dist/stylos/rotation-scale-inbetween`. The build uses Python 3, LIEF, Zig 0.13 and either .NET Framework csc or Mono mcs. The deployed interpolation code uses scalar x86 and x87. The separate `check.c` validation program compares it to a spiral-centre reference and times the interpolation of both rows with Windows thread cycle counters.

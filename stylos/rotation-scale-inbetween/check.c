@@ -62,23 +62,55 @@ static double match_error(Pose a,Point x,Pose b,Point y) {
 static int check_four(void) {
     Point points[]={{2,3},{7,6},{-3,5},{-9,15}}; /* T(z) = 2 i z + (3,1) */
     Pose a,b;
-    if(fit_four(points,1,2,1,&a,&b)!=FIT_OK || a.angle!=45 || b.angle!= -45 ||
+    if(fit_four(points,1,2,1,0,&a,&b)!=FIT_OK || a.angle!=45 || b.angle!= -45 ||
        fabs(a.scale-1.42)>1e-12 || fabs(b.scale-.71)>1e-12)return 0;
     for(int i=0;i<2;++i)if(match_error(a,points[i],b,points[i+2])>1e-11)return 0;
     for(int end=0;end<2;++end){
-        if(fit_four(points,end,1,0,&a,&b)!=FIT_OK)return 0;
+        if(fit_four(points,end,1,0,0,&a,&b)!=FIT_OK)return 0;
         Pose anchor=end?b:a;
         if(anchor.angle!=0 || anchor.scale!=1 || hypot(anchor.shift.x,anchor.shift.y)>1e-11)return 0;
     }
     Point move[]={{1,4},{5,6},{8,-10},{12,-8}};
-    if(fit_four(move,2,7,0,&a,&b)!=FIT_OK || fabs(a.shift.x-2)>1e-12 ||
+    if(fit_four(move,2,7,0,0,&a,&b)!=FIT_OK || fabs(a.shift.x-2)>1e-12 ||
        fabs(a.shift.y+4)>1e-12 || fabs(b.shift.x+5)>1e-12 || fabs(b.shift.y-10)>1e-12)return 0;
     move[3].x+=.37;
-    if(fit_four(move,1,2,1,&a,&b)!=FIT_LOCK || fit_four(move,1,2,0,&a,&b)!=FIT_OK)return 0;
+    if(fit_four(move,1,2,1,0,&a,&b)!=FIT_LOCK || fit_four(move,1,2,0,0,&a,&b)!=FIT_OK)return 0;
     if(match_error(a,midpoint(move[0],move[1]),b,midpoint(move[2],move[3]))>1e-11)return 0;
-    move[1]=move[0];return fit_four(move,1,2,0,&a,&b)==FIT_SEGMENT;
+    move[1]=move[0];return fit_four(move,1,2,0,0,&a,&b)==FIT_SEGMENT;
+}
+/* A relative-overlap test alone misses the common rotation of both sheets.
+   Check the stored pose against the independently computed midpoint of an
+   actual off-centre paper point on the C0076 2340 x 1654, 200 dpi sheets. */
+static int check_c0076(void) {
+    Pose a={1,0,{0,0}},b={1,1,{-.15,-.17}},l,r;
+    interpolate(a,b,1,2,&l,&r);
+    Point point={1170*2.54/200,827*2.54/200};
+    double half=acos(-1.)/360;
+    Point turn={cos(half),-sin(half)};
+    /* B maps sheet 077 to sheet 075. The displacement of the square root
+       of inverse(B) is inverse(B)'s translation divided by 1+turn. */
+    Point h=quotient((Point){.15,.17},(Point){cos(2*half),sin(2*half)});
+    Point shift=quotient(h,(Point){1+turn.x,turn.y});
+    Point expected=product(turn,point);
+    int lp,ld,rp,rd;
+    PoseResidual lf=split_linear(l.scale,l.angle,&lp,&ld),rf=split_linear(r.scale,r.angle,&rp,&rd);
+    l.angle=ld+(double)lf.degrees;r.angle=rd+(double)rf.degrees;
+    Point result=product(polar(l.scale,l.angle),point);
+    if(ld-rd!=-1 || l.angle!=-.5 || r.angle!=.5 || lp!=100 || rp!=100 ||
+       hypot(result.x+l.shift.x-expected.x-shift.x,result.y+l.shift.y-expected.y-shift.y)>1e-10)return 0;
+    Point partner=product(polar(1,-1),(Point){point.x+.15,point.y+.17});
+    if(match_error(l,point,r,partner)>1e-10)return 0;
+    Point pts[4]={point,{0,0},partner,h};
+    for(int lock=0;lock<=1;++lock){
+        if(fit_four(pts,1,2,lock,1,&l,&r)!=FIT_OK ||
+           fabs(l.angle+.5)>1e-10 || fabs(r.angle-.5)>1e-10 ||
+           match_error(l,pts[0],r,pts[2])>1e-10)return 0;
+    }
+    return 1;
 }
 int main(void) {
+    if(!check_c0076())return 11;
+    puts("C0076 stored half-degree, paper corner and four-point midpoint passed.");
     Point origin={7,-2},horizontal={5,3},vertical={10,-1},sheet={7.75,-6},client;
     /* client=(-96,-32) on a rotated/reflected, translated view. */
     if(!paper_to_client(origin,horizontal,vertical,128,sheet,&client) ||

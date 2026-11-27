@@ -5,7 +5,7 @@
 /* Slot order is part of the previous installer format. */
 enum { SetX, SetY, SetScale, SetAngle, Refresh, LengthGet, LengthSet,
        Module, Procedure, Message, SetText, GetText, End, GetApp, GetSet,
-       NativePreferencesModal, NativePreferencesProc, ViewToPixels };
+       NativePreferencesModal, NativePreferencesProc, ViewToPixels, RebuildRow };
 extern __attribute__((visibility("hidden"))) const volatile int stylos_links[];
 static inline void *address(int slot) { return (char *)stylos_links + stylos_links[slot]; }
 #define IMPORT(slot,type) (*(type *)address(slot))

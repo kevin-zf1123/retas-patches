@@ -82,8 +82,8 @@ static void pick_restore(PickState *p) {
                 Pose now=read_pose(row),last=p->staged[k];
                 if(now.shift.x==last.shift.x)((RowLength)address(SetX))(row,p->lengths[k][0]);
                 if(now.shift.y==last.shift.y)((RowLength)address(SetY))(row,p->lengths[k][1]);
-                if(now.scale==last.scale)((RowValue)address(SetScale))(row,nearest(p->pose[k].scale*100));
-                if(now.angle==last.angle)((RowValue)address(SetAngle))(row,(int)p->pose[k].angle);
+                write_linear(row,now.scale==last.scale?p->pose[k].scale:now.scale,
+                                  now.angle==last.angle?p->pose[k].angle:now.angle);
             }
         }
     }

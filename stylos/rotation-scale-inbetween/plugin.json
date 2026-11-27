@@ -1,40 +1,18 @@
 {
-  "schema": 2,
+  "schema": 3,
   "host": "stylos-2.6.0-x86",
   "id": "inbetween",
-  "sites": [
+  "name": "中割对位",
+  "version": "0.2.1",
+  "module": "module.dll",
+  "settings": "中割对位",
+  "legacyPage": 2,
+  "order": 30,
+  "shortcuts": [
     {
-      "rva": "0x230b6",
-      "size": 6
-    },
-    {
-      "rva": "0xe22d1",
-      "size": 19
+      "command": "LIGHTTABLEPALETTE_ALIGNMENT_MOVECENTER",
+      "modifiers": 7,
+      "candidates": "IJKUO"
     }
-  ],
-  "segments": [
-    ".ltalign"
-  ],
-  "fixups": [
-    {
-      "region": "host",
-      "address": "0x230b7",
-      "base": ".ltalign",
-      "factor": 1
-    },
-    {
-      "region": "host",
-      "address": "0xe22d8",
-      "base": ".ltalign",
-      "factor": 1
-    },
-    {
-      "region": ".ltalign",
-      "address": "0x8050",
-      "count": 18,
-      "base": ".ltalign",
-      "factor": -1
-    }
-  ],
-  "version": "0.1.0"
+  ]
 }

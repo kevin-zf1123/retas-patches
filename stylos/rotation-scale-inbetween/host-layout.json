@@ -1,0 +1,121 @@
+{
+  "schema": 2,
+  "host": "stylos-2.6.0-x86",
+  "id": "inbetween",
+  "sites": [
+    {
+      "rva": "0x230b6",
+      "size": 6
+    },
+    {
+      "rva": "0xe22d1",
+      "size": 19
+    },
+    {
+      "rva": "0x200888",
+      "size": 5,
+      "expected": "68 e0 00 00 00",
+      "bytes": "68 e8 00 00 00"
+    },
+    {
+      "rva": "0x202228",
+      "size": 5,
+      "expected": "68 e0 00 00 00",
+      "bytes": "68 e8 00 00 00"
+    },
+    {
+      "rva": "0x2023de",
+      "size": 5,
+      "expected": "68 e0 00 00 00",
+      "bytes": "68 e8 00 00 00"
+    },
+    {
+      "rva": "0x1fcb01",
+      "size": 10,
+      "expected": "c7 86 98 00 00 00 64 00 00 00",
+      "call": "reset_precision"
+    },
+    {
+      "rva": "0x1fd5e4",
+      "size": 10,
+      "expected": "c7 86 98 00 00 00 64 00 00 00",
+      "call": "reset_precision"
+    },
+    {
+      "rva": "0x1fe6f4",
+      "size": 6,
+      "expected": "3b 81 98 00 00 00",
+      "call": "compare_scale"
+    },
+    {
+      "rva": "0x1fe72e",
+      "size": 6,
+      "expected": "39 81 9c 00 00 00",
+      "call": "compare_angle"
+    },
+    {
+      "rva": "0x1fd419",
+      "size": 6,
+      "expected": "db 83 98 00 00 00",
+      "call": "bitmap_scale"
+    },
+    {
+      "rva": "0x1fc7e3",
+      "size": 6,
+      "expected": "db 86 98 00 00 00",
+      "call": "matrix_scale"
+    },
+    {
+      "rva": "0x1fd942",
+      "size": 6,
+      "expected": "db 86 98 00 00 00",
+      "call": "matrix_scale"
+    },
+    {
+      "rva": "0x1fdfe2",
+      "size": 6,
+      "expected": "db 86 98 00 00 00",
+      "call": "matrix_scale"
+    },
+    {
+      "rva": "0x1fd965",
+      "size": 6,
+      "expected": "db 86 9c 00 00 00",
+      "call": "matrix_angle"
+    },
+    {
+      "rva": "0x1fe034",
+      "size": 6,
+      "expected": "db 86 9c 00 00 00",
+      "call": "matrix_angle"
+    },
+    {
+      "rva": "0x1fc8aa",
+      "size": 16,
+      "expected": "8b 8e 9c 00 00 00 f7 d9 89 4c 24 10 db 44 24 10",
+      "call": "inverse_angle"
+    },
+    {
+      "rva": "0x1fd436",
+      "size": 6,
+      "expected": "39 bb 9c 00 00 00",
+      "call": "test_rotation"
+    },
+    {
+      "rva": "0x1fd484",
+      "size": 8,
+      "expected": "8b 83 9c 00 00 00 85 c0",
+      "call": "test_rotation"
+    },
+    {
+      "rva": "0x1fd4ae",
+      "size": 5,
+      "expected": "8b cf ff 52 20",
+      "call": "rotate_bitmap"
+    }
+  ],
+  "segments": [
+    ".ltalign"
+  ],
+  "version": "0.2.1"
+}

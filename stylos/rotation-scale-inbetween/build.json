@@ -1,0 +1,9 @@
+{
+  "package": "Stylos-Inbetween-x86.zip",
+  "sources": [
+    "stylos/rotation-scale-inbetween/plugin-page.c"
+  ],
+  "resource": "stylos/rotation-scale-inbetween/Pages.rc",
+  "guide": "manager-guide.md",
+  "imageBuilder": "build_image.py"
+}

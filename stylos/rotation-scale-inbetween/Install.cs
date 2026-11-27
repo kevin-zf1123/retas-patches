@@ -103,26 +103,27 @@ internal sealed class StylosImage {
     // Validate the links and both branch destinations before upgrading it.
     bool IsPreviousRelease(int va,int entry,int done,int prefSite,List<int> links,out bool hasPreferences) {
         int length=I32(alignmentSection+8);
-        bool preview=length==30348;
+        bool circles=length==32932;
+        bool preview=length==30348 || circles;
         bool fourPoints=length==21920 || preview;
         hasPreferences=length==12116 || fourPoints;
         if(!hasPreferences && length!=0x1914 || I32(alignmentSection+16)<length)return false;
         int slots=fourPoints?18:(hasPreferences?17:15);
-        int tableOffset=preview?30264:fourPoints?21836:(hasPreferences?12036:0x18cc);
+        int tableOffset=circles?0x8050:preview?30264:fourPoints?21836:(hasPreferences?12036:0x18cc);
         int pos=I32(alignmentSection+20);
         byte[] normalized=new byte[length];
         Array.Copy(bytes,pos,normalized,0,length);
         for(int i=0;i<slots;++i)
             if(I32(pos+tableOffset+i*4)!=links[i]-va-tableOffset)return false;
         Array.Clear(normalized,tableOffset,slots*4);
-        string expected=preview?"ce25902aac9c926995c98f509b4096c4a22ec072a19349ee0cfd43501fdb5ab2":fourPoints?"4a7bad87f62288fe0db3f05fd865daf6b3f0714920d3304319d8aaa7ec4c4013":hasPreferences?"65ce28653ee7ddfc5f8cd0ad6822d2388ab7e99fe6cf87d7f7d077b0617b4efb":
+        string expected=circles?"e854253552c335dbba4c23e85c51771f6288f80fa2c91f56ddbe1bef80139735":preview?"ce25902aac9c926995c98f509b4096c4a22ec072a19349ee0cfd43501fdb5ab2":fourPoints?"4a7bad87f62288fe0db3f05fd865daf6b3f0714920d3304319d8aaa7ec4c4013":hasPreferences?"65ce28653ee7ddfc5f8cd0ad6822d2388ab7e99fe6cf87d7f7d077b0617b4efb":
             "b2553dd589bb6841df836f8a4bf9c9e13c4192ad59d8246720d0a2f9f869f40e";
         using(var sha=System.Security.Cryptography.SHA256.Create()) {
             if(BitConverter.ToString(sha.ComputeHash(normalized)).Replace("-","").ToLowerInvariant()!=expected)return false;
         }
         return bytes.Skip(entry).Take(19).SequenceEqual(AlignmentCall(Rva(entry),va,done)) &&
             (!hasPreferences || (bytes[prefSite]==0xe8 && bytes[prefSite+5]==0x90 &&
-                Rva(prefSite)+5+I32(prefSite+1)==va+(preview?21978:fourPoints?14424:6055)));
+                Rva(prefSite)+5+I32(prefSite+1)==va+(circles?0x5f56:preview?21978:fourPoints?14424:6055)));
     }
 
     static byte[] AlignmentCall(int join,int handler,int done) {
@@ -132,7 +133,38 @@ internal sealed class StylosImage {
         return call;
     }
 
+    // Decode and verify the entire row adapter before changing the in-memory
+    // image. Normalising a complete existing installation also lets the stock
+    // setter and command signatures below be verified on a repeated install.
+    bool RowAdapters(int va, bool write) {
+        var edits=new List<KeyValuePair<int,byte[]>>();
+        int prior=0;
+        using(var r=new BinaryReader(Assembly.GetExecutingAssembly().GetManifestResourceStream("row-sites"))) {
+            while(r.BaseStream.Position<r.BaseStream.Length) {
+                int site=r.ReadInt32(),target=r.ReadInt32(),size=r.ReadByte(),pos=Raw(site);
+                byte[] original=r.ReadBytes(size),replacement;
+                if(target<0)replacement=r.ReadBytes(size);
+                else {
+                    replacement=Enumerable.Repeat((byte)0x90,size).ToArray();
+                    replacement[0]=0xe8;
+                    Array.Copy(BitConverter.GetBytes(va+target-site-5),0,replacement,1,4);
+                }
+                var actual=new byte[size];
+                Array.Copy(bytes,pos,actual,0,size);
+                if(!actual.SequenceEqual(original)) {
+                    Require(alignmentSection!=0 && actual.SequenceEqual(replacement),"透光台浮点变换位置不匹配："+site.ToString("x"));
+                    ++prior;
+                }
+                edits.Add(new KeyValuePair<int,byte[]>(pos,write?replacement:original));
+            }
+        }
+        Require(prior==0 || prior==edits.Count,"透光台浮点补丁不完整。");
+        foreach(var e in edits)Array.Copy(e.Value,0,bytes,e.Key,e.Value.Length);
+        return prior!=0;
+    }
+
     byte[] Build() {
+        bool currentRows=RowAdapters(alignmentSection==0?0:I32(alignmentSection+12),false);
         // Adopt the original two-row selection, including its document and modal gates.
         int rows=Unique(text,textEnd,"8B 47 34 83 F8 02 89 44 24 14 75 0A 8B 47 1C 8B 30 8B 68 04 EB 2B");
         int entry=rows+22+(sbyte)bytes[rows+21];
@@ -209,6 +241,9 @@ internal sealed class StylosImage {
         Require(Unique(viewStart,viewStart+32,"83 EC 10 DD 44 24 18 56 57")==viewStart,
             "画布坐标转换与补丁不匹配。");
         links.Add(viewToPixels);
+        int rebuild=Branch(scale+18,0xe8);
+        Require(rebuild==0x1fd3a0 && Branch(angleSetter+44,0xe8)==rebuild,"透光台图像重建函数不匹配。");
+        links.Add(rebuild);
         byte[] code;
         int handler,bindings,prefs;
         using(var reader=new BinaryReader(Assembly.GetExecutingAssembly().GetManifestResourceStream("alignment"))) {
@@ -227,7 +262,7 @@ internal sealed class StylosImage {
         if(alignmentSection!=0) {
             hdr=alignmentSection;pos=I32(hdr+20);oldSize=I32(hdr+16);
             Require((I32(hdr+36)&0x60000000)==0x60000000,"中割补丁节的属性不匹配。");
-            if(I32(hdr+8)==code.Length && oldSize>=code.Length &&
+            if(currentRows && I32(hdr+8)==code.Length && oldSize>=code.Length &&
                bytes.Skip(pos).Take(code.Length).SequenceEqual(code) &&
                bytes.Skip(entry).Take(call.Length).SequenceEqual(call) &&
                bytes.Skip(prefSite).Take(6).SequenceEqual(prefCall))return null;
@@ -248,6 +283,7 @@ internal sealed class StylosImage {
         byte[] updated=new byte[checked(pos+size)];
         Array.Copy(bytes,updated,Math.Min(bytes.Length,updated.Length));
         bytes=updated;
+        RowAdapters(va,true);
         Array.Copy(call,0,bytes,entry,call.Length);Array.Copy(prefCall,0,bytes,prefSite,6);
         Array.Copy(code,0,bytes,pos,code.Length);Array.Clear(bytes,pos+code.Length,size-code.Length);
         Array.Copy(Encoding.ASCII.GetBytes(".ltalign"),0,bytes,hdr,8);

@@ -12,11 +12,11 @@ static BOOL preview_owned(PickState *p) {
 static int preview_fit(PickState *p) {
     Pose next[2];
     int fit=fit_four(p->points,p->step&0x3fff,((unsigned)p->step>>16)&0x3fff,
-                     (p->step&(1<<30))!=0,&next[0],&next[1]);
+                     (p->step&(1<<30))!=0,fractional_rotation_available(),&next[0],&next[1]);
     if(fit!=FIT_OK)return fit;
     if(!usable(next[0]) || !usable(next[1]))return FIT_RANGE;
     for(int k=0;k<2;++k){
-        write_pose(p->rows[k],next[k],(int)next[k].angle);
+        write_pose(p->rows[k],next[k]);
         p->staged[k]=read_pose(p->rows[k]);
     }
     p->provisional=TRUE;return FIT_OK;

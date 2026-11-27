@@ -2,6 +2,16 @@
    The input and output shifts are in source-centred centimetres. */
 static int nearest(double x) { return (int)(x<0 ? x-0.5 : x+0.5); }
 
+typedef struct { float percent, degrees; } PoseResidual;
+static PoseResidual split_linear(double scale,double angle,int *percent,int *degrees) {
+    *percent=nearest(scale*100);
+    *degrees=nearest(angle);
+    /* Use the same tie direction on both rows in the legacy integer format. */
+    if(angle-*degrees==0.5)++*degrees;
+    PoseResidual fraction={(float)(scale*100-*percent),angle==*degrees?0.f:(float)(angle-*degrees)};
+    return fraction;
+}
+
 static int native_poses(Pose from,Pose to,unsigned n,unsigned d,int lock,Pose *left,Pose *right) {
     int a=nearest(from.scale*100), b=nearest(to.scale*100);
     int gcd=a, divisor=b;
