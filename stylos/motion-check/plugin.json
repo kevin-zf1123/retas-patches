@@ -3,9 +3,12 @@
   "host": "stylos-2.6.0-x86",
   "id": "motion-check",
   "name": "运动检查与后台预渲染",
-  "version": "0.2.0",
+  "version": "0.2.2",
+  "module": "module.dll",
+  "settings": "动检预渲染",
   "order": 20,
   "files": [
-    "MotionRender.dll"
+    "MotionRender.dll",
+    "StylosRender64.exe"
   ]
 }

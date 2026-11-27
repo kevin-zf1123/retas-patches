@@ -9,7 +9,7 @@ internal sealed class DeltaImage {public string image,delta;}
 internal sealed class Claim {public int rva,size;}
 internal sealed class FixedEdit {public int rva;public string expected, data;}
 internal sealed class Section {public string name,data;public int virtualSize;public uint flags;}
-internal sealed class Relocation {public string region,target;public int address,addend;}
+internal sealed class Relocation {public string region,target,relativeTarget;public int address,addend;}
 internal sealed class Variant {public DeltaImage[] images;}
 internal sealed class Layout {
     public Dictionary<string,Variant> variants;
@@ -134,8 +134,10 @@ internal static class Images {
         foreach(var w in writes)w.Value.CopyTo(result,w.Key.fileOffset);
         foreach(var pair in layouts)foreach(var f in pair.Value.relocations??new Relocation[0]){
             var dst=map.Resolve(pair.Key.id,f.region,f.address,4);
-            var target=map.Resolve(pair.Key.id,f.target,f.addend,1);
-            BitConverter.GetBytes(target.rva).CopyTo(result,dst.fileOffset);
+            if((f.target==null)==(f.relativeTarget==null))throw new InvalidDataException("重定位必须指定一个目标区域。");
+            var target=map.Resolve(pair.Key.id,f.relativeTarget??f.target,f.addend,1);
+            int value=f.relativeTarget==null?target.rva:checked(target.rva-dst.rva-4);
+            BitConverter.GetBytes(value).CopyTo(result,dst.fileOffset);
         }
         allocations.Add("Stylos.exe",map.Regions);return result;
     }

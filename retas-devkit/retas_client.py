@@ -30,5 +30,7 @@ if __name__ == "__main__":
     args=parser.parse_args()
     if request("version")!=1:raise SystemExit("Stylos DevKit v1 not registered")
     page=PAGES.get(args.page)
-    if page is None:page=ctypes.windll.user32.RegisterWindowMessageW("RETAS.Stylos.Settings."+args.page)
+    if page is None:
+        plugin_id = "motion-check" if args.page == "motion" else args.page
+        page = ctypes.windll.user32.RegisterWindowMessageW("RETAS.Stylos.Settings."+plugin_id)
     print(request(args.entry,page if args.entry=="preferences" else 0))

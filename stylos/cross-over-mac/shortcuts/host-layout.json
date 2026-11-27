@@ -1,0 +1,9 @@
+{
+  "source": "shortcuts.S",
+  "site": {
+    "rva": "0x1d13f",
+    "size": 8,
+    "expected": "8b17568bcfff5204"
+  },
+  "section": ".cxkeys"
+}

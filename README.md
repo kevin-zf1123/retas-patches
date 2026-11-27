@@ -20,7 +20,7 @@
 | [better-canvas](better-canvas/) 与 [stylos](stylos/) | 各插件的源码、清单和构建配置 |
 | [tools/build_plugins.py](tools/build_plugins.py) | 构建本仓库维护的插件；第三方作者可直接使用 DevKit |
 
-Windows 构建需要 Python 3、pefile、LIEF、Zig 0.13、x86 TCC 和 .NET Framework 4.x。管理器只需要两个原始基线 `chs/base.exe`、`chs-laa/base.exe`，独立于插件构建。生成动检、高 DPI 和中割组件还需要按 `<变体>/<阶段>.exe` 放置的参考镜像。管理器输出到 `packages/0.2.1/`，功能插件位于 `plugins/`，开发工具位于 `devkit/`。
+Windows 构建需要 Python 3、pefile、LIEF、Zig 0.13、x86 TCC 和 .NET Framework 4.x。管理器只需要两个原始基线 `chs/base.exe`、`chs-laa/base.exe`，独立于插件构建。生成动检、高 DPI 和中割组件还需要按 `<变体>/<阶段>.exe` 放置的参考镜像。动检的 64 位渲染器另需 x64 C++23 工具链和 CMake 3.25 以上。默认 packages 目标只构建 Windows 功能插件。管理器输出到 `packages/0.2.2/`，功能插件位于 `plugins/`，开发工具位于 `devkit/`。
 
 ```powershell
 cmake -S . -B build -DSTYLOS_HOST_DIR=D:/refs
@@ -45,7 +45,7 @@ cmake --build build --target packages
 | Windows Ink 笔输入 | [windows-ink](stylos/windows-ink/) | `Stylos-Windows-Ink-x86.zip` |
 | 高 DPI 界面 | [high-dpi](stylos/high-dpi/) | `Stylos-High-DPI-x86.zip` |
 
-**环境设置 → 插件** 保留原有插件分类。启用相应组件后，子项“画布显示”和“中割对位”分别显示各自配置。
+**环境设置 → 插件** 保留原有插件分类。启用相应组件后，可在相应子项调整画布显示、快速导航、中割对位和动检预渲染。
 
 [RETAS DevKit](retas-devkit/) 维护版本化宿主入口和外部工具接口；[Stylos Plugin Manager](plugin-manager/) 根据已导入插件包维护模块、插入位置和安装状态。下文是原版中割 v0.1 的介绍。
 

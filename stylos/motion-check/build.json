@@ -1,5 +1,14 @@
 {
   "package": "Stylos-Motion-Check-x86.zip",
+  "sources": ["stylos/motion-check/plugin-page.c"],
+  "resource": "stylos/motion-check/Pages.rc",
+  "libraries": ["shell32", "ole32", "advapi32"],
+  "notices": ["worker/THIRD-PARTY.txt"],
+  "workerBuild": {
+    "script": "worker/build.py",
+    "directory": "render64",
+    "output": "StylosRender64.exe"
+  },
   "runtimeBuild": "Build.ps1",
   "imageBuilder": "build_image.py"
 }

@@ -34,11 +34,16 @@ def build(manifest,args):
             subprocess.run([args.zig,"cc","-target","x86-windows-gnu","-march=pentium4","-O3","-ffp-contract=off",*trace,
                             "-shared","-s",*["-D"+x for x in recipe.get("defines",[])],
                             *[ROOT/x for x in recipe["sources"]],SDK/"module.def",*res,"-o",module,
-                            "-luser32","-lcomctl32","-lgdi32"],check=True)
+                            "-luser32","-lcomctl32","-lgdi32",*["-l"+lib for lib in recipe.get("libraries",[])]],check=True)
             data=bytearray(module.read_bytes())
             struct.pack_into("<I",data,struct.unpack_from("<I",data,60)[0]+8,0)
             members[p["module"]]=bytes(data)
         if recipe.get("runtimeBuild"):
+            if recipe.get("workerBuild"):
+                worker=recipe["workerBuild"]
+                subprocess.run([sys.executable,folder/worker["script"],"--build",
+                                (args.build_dir or d)/worker["directory"],"--out",d/worker["output"],
+                                "--cmake",args.cmake],check=True)
             extra=["-Tcc",args.tcc] if recipe.get("usesTcc") else []
             env=dict(os.environ,PATH=str(Path(args.zig).resolve().parent)+os.pathsep+os.environ["PATH"])
             subprocess.run([shutil.which("pwsh") or "powershell","-NoProfile","-ExecutionPolicy","Bypass","-File",folder/recipe["runtimeBuild"],
@@ -52,6 +57,11 @@ def build(manifest,args):
             images=LinkedImages(folder,args.refs,args.zig,d,members)
             runpy.run_path(str(folder/recipe["imageBuilder"]))["prepare"](images)
             members["layout.json"]=json.dumps(images.layout,separators=(",",":")).encode()
+        if recipe.get("layoutBuilder"):
+            layout=runpy.run_path(str(folder/recipe["layoutBuilder"]))["prepare"](folder,args.zig,d,members)
+            members["layout.json"]=json.dumps(layout,separators=(",",":")).encode()
+        for source in recipe.get("notices",[]):
+            members[Path(source).name]=(folder/source).read_bytes()
         args.out.mkdir(parents=True,exist_ok=True)
         (args.out/recipe["package"]).write_bytes(archive(members))
         print(recipe["package"],flush=True)
@@ -65,11 +75,14 @@ if __name__=="__main__":
     cli.add_argument("--zig",default="zig")
     cli.add_argument("--tcc",default="tcc.exe")
     cli.add_argument("--only")
+    cli.add_argument("--build-dir",type=Path,help="Keep the standalone worker's incremental build here")
+    cli.add_argument("--cmake",default="cmake")
     cli.add_argument("--trace",action="store_true",help="Instrument a canvas module in a disposable lab")
     args=cli.parse_args()
     found=False
     for base in (ROOT/"better-canvas",ROOT/"stylos"):
         for m in sorted(base.rglob("plugin.json")):
+            if not args.only and "cross-over-mac" in m.parts:continue
             if (m.parent/"build.json").is_file() and (not args.only or json.loads(m.read_bytes())["id"]==args.only):
                 found=True;build(m,args)
     if not found:cli.error("Unknown component")

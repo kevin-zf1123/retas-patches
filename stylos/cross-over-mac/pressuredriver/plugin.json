@@ -1,0 +1,7 @@
+{
+  "schema": 3,
+  "host": "stylos-2.6.0-x86",
+  "id": "crossover-pressure",
+  "name": "CrossOver 起笔压力回退",
+  "version": "0.2.2"
+}

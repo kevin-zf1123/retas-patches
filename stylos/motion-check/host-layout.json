@@ -87,11 +87,5 @@
   "segments": [
     ".motion"
   ],
-  "workerSites": [
-    {
-      "rva": "0x5d3370",
-      "size": 36
-    }
-  ],
-  "version": "0.1.1"
+  "version": "0.2.2"
 }

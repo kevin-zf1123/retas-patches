@@ -4,7 +4,7 @@ find_package(Python3 3.8 REQUIRED COMPONENTS Interpreter)
 set(STYLOS_HOST_DIR "" CACHE PATH "Reference images named <variant>/<stage>.exe")
 set(RETAS_ZIG "zig" CACHE STRING "Zig 0.13 executable")
 set(RETAS_TCC "tcc" CACHE STRING "x86 Tiny C Compiler")
-set(destination "${CMAKE_CURRENT_SOURCE_DIR}/packages/0.2.1")
+set(destination "${CMAKE_CURRENT_SOURCE_DIR}/packages/0.2.2")
 set(extra)
 if(STYLOS_HOST_DIR)
     list(APPEND extra --refs "${STYLOS_HOST_DIR}")
@@ -20,9 +20,12 @@ foreach(recipe IN LISTS recipes)
     string(JSON id GET "${manifest}" id)
     add_custom_target("${id}"
         COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/build_plugins.py"
-                --only "${id}" --out "${destination}/plugins" --zig "${RETAS_ZIG}" --tcc "${RETAS_TCC}" ${extra}
+                --only "${id}" --out "${destination}/plugins" --zig "${RETAS_ZIG}" --tcc "${RETAS_TCC}"
+                --build-dir "${CMAKE_CURRENT_BINARY_DIR}" --cmake "${CMAKE_COMMAND}" ${extra}
         VERBATIM)
-    add_dependencies(components "${id}")
+    if(NOT folder MATCHES "/cross-over-mac/")
+        add_dependencies(components "${id}")
+    endif()
 endforeach()
 
 add_custom_target(plugin-manager

@@ -47,7 +47,7 @@ def build(bases, zig, out):
         build_bridge(zig,dll)
         resources["bridge"]=dll.read_bytes()
         exe=work/"StylosPluginManager.exe"
-        version=work/"Version.cs";version.write_text('[assembly:System.Reflection.AssemblyFileVersion("0.2.1.0")]')
+        version=work/"Version.cs";version.write_text('[assembly:System.Reflection.AssemblyFileVersion("0.2.2.0")]')
         args=[Path(os.environ["WINDIR"])/"Microsoft.NET/Framework/v4.0.30319/csc.exe","/nologo","/optimize+",
               "/platform:x86","/target:winexe","/out:"+str(exe)]
         for name in ["System.Windows.Forms","System.Drawing","System.Web.Extensions","System.IO.Compression"]:
@@ -55,7 +55,7 @@ def build(bases, zig, out):
         for name,data in resources.items():
             path=work/name;path.write_bytes(data);args.append("/resource:"+str(path)+","+name)
         subprocess.run([*args,*sorted((HERE/"core").glob("*.cs")),SDK/"PatchMap.cs",SDK/"ShortcutBinding.cs",version],check=True)
-        release={"product":"retas.stylos.manager.x86.v2","version":"0.2.1"}
+        release={"product":"retas.stylos.manager.x86.v2","version":"0.2.2"}
         (out/"Stylos-Plugin-Manager-x86.zip").write_bytes(archive({exe.name:exe.read_bytes(),"update.json":json.dumps(release).encode(),
                     "README.md":(HERE/"README.md").read_bytes(),"LICENSE":(HERE.parent/"LICENSE").read_bytes()}))
 

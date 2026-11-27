@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Reflection;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Collections.Generic;
 using System.Web.Script.Serialization;
 using Retas.DevKit;
@@ -18,7 +19,7 @@ internal sealed class State {
 }
 internal sealed class Change {public string key,prior,next;}
 internal sealed partial class Engine {
-    internal const string Version="0.2.1";
+    internal const string Version="0.2.2";
     const string BridgeName="StylosCanvasFilter.dll", ExeName="Stylos.exe";
     const string StateName=".stylos-plugins/installed-v2.json";
     internal readonly string Dir,Store;
@@ -61,11 +62,26 @@ internal sealed partial class Engine {
             if(File.Exists(file))File.Replace(tmp,file,null);else File.Move(tmp,file);
         }finally{if(File.Exists(tmp))File.Delete(tmp);}
     }
+    [DllImport("kernel32.dll")]
+    static extern IntPtr OpenProcess(uint access,bool inherit,int pid);
+    [DllImport("kernel32.dll",CharSet=CharSet.Unicode)]
+    static extern bool QueryFullProcessImageName(IntPtr handle,uint flags,StringBuilder path,ref int length);
+    [DllImport("kernel32.dll")]
+    static extern bool CloseHandle(IntPtr handle);
     public bool Running(){
         foreach(var p in Process.GetProcesses())using(p){
-            try{if(p.ProcessName.StartsWith("Stylos",StringComparison.OrdinalIgnoreCase) &&
-                !p.ProcessName.Equals("StylosPluginManager",StringComparison.OrdinalIgnoreCase) &&
-                String.Equals(Path.GetDirectoryName(p.MainModule.FileName),Dir,StringComparison.OrdinalIgnoreCase))return true;}
+            try{
+                if(!p.ProcessName.StartsWith("Stylos",StringComparison.OrdinalIgnoreCase) ||
+                   p.ProcessName.Equals("StylosPluginManager",StringComparison.OrdinalIgnoreCase))continue;
+                // A 32-bit manager must also recognize a 64-bit renderer.
+                IntPtr handle=OpenProcess(0x1000,false,p.Id);
+                if(handle==IntPtr.Zero)continue;
+                try{
+                    int length=32768;var path=new StringBuilder(length);
+                    if(QueryFullProcessImageName(handle,0,path,ref length) &&
+                       String.Equals(Path.GetDirectoryName(path.ToString()),Dir,StringComparison.OrdinalIgnoreCase))return true;
+                }finally{CloseHandle(handle);}
+            }
             catch(System.ComponentModel.Win32Exception){}catch(InvalidOperationException){}
         }
         return false;
