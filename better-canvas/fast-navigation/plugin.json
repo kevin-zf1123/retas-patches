@@ -1,0 +1,10 @@
+{
+  "schema": 3,
+  "host": "stylos-2.6.0-x86",
+  "id": "fast-navigation",
+  "name": "快速导航",
+  "version": "0.2.0",
+  "module": "module.dll",
+  "settings": "快速导航",
+  "legacyPage": 3
+}

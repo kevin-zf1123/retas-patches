@@ -1,0 +1,19 @@
+{
+  "package": "Stylos-Fast-Navigation-x86.zip",
+  "sources": [
+    "better-canvas/filter-plugin.c",
+    "better-canvas/CanvasFilter.c",
+    "retas-devkit/NativeTile.S",
+    "better-canvas/rotation-shortcuts/RotationCalls.S",
+    "better-canvas/CanvasInput.c",
+    "better-canvas/fast-navigation/Navigation.c",
+    "better-canvas/zoom/mousewheel-zoom/ZoomCalls.S"
+  ],
+  "defines": [
+    "RETAS_PLUGIN_MODULE",
+    "STYLOS_MANAGER_INPUT",
+    "RETAS_FAST",
+    "RETAS_WHEEL_ONLY",
+    "RETAS_ROTATION"
+  ]
+}

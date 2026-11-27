@@ -9,7 +9,10 @@ typedef LRESULT (WINAPI *DefSubclass)(HWND, UINT, WPARAM, LPARAM);
 void RegisterStylosShortcut(void *entry, void *link, int command, const char *name);
 int CallStylosCommand(void *entry, void *object, int command);
 void RefreshStylosShortcuts(void *entry, void *settings);
-BOOL RotateStylosCanvas(HWND canvas, int degrees);
+BOOL RotateStylosCanvas(HWND canvas, int degrees, const MSG *key);
+#ifdef STYLOS_MANAGER_INPUT
+void FlushQueuedCanvasInput(void);
+#endif
 
 enum {
     Application = 0x7095c8,
@@ -252,13 +255,16 @@ static BOOL CALLBACK find_preview(HWND window, LPARAM data)
     return FALSE;
 }
 
-static BOOL run_command(int command)
+static BOOL run_command(int command, const MSG *key)
 {
     HWND mdi = FindWindowExA(frame, NULL, "MDIClient", NULL);
     HWND canvas = mdi ? (HWND)SendMessageA(mdi, WM_MDIGETACTIVE, 0, 0) : NULL;
     if (!canvas || !IsWindowEnabled(frame) || GetCapture())
         return FALSE;
     if (command == RegisterPreview) {
+#ifdef STYLOS_MANAGER_INPUT
+        FlushQueuedCanvasInput();
+#endif
         void *preview = NULL;
         EnumThreadWindows(GetCurrentThreadId(), find_preview, (LPARAM)&preview);
         if (!preview)
@@ -266,7 +272,7 @@ static BOOL run_command(int command)
         CallStylosCommand(image + PreviewDispatch, preview, PreviewRegisterSelection);
         return TRUE;
     }
-    return RotateStylosCanvas(canvas, command == RotateLeft ? -5 : 5);
+    return RotateStylosCanvas(canvas, command == RotateLeft ? -5 : 5, key);
 }
 
 BOOL DispatchStylosShortcut(const MSG *message)
@@ -304,7 +310,7 @@ BOOL DispatchStylosShortcut(const MSG *message)
         unsigned int vk = ((unsigned short (__cdecl *)(unsigned int))(image + VirtualKeyForBinding))(key);
         if (message->wParam == vk || (key >= '0' && key <= '9'
                 && message->wParam == VK_NUMPAD0 + key - '0'))
-            return run_command(item->command);
+            return run_command(item->command, message);
     }
     return FALSE;
 }
@@ -315,7 +321,7 @@ static LRESULT CALLBACK frame_message(HWND window, UINT message, WPARAM wparam, 
     if (message == WM_COMMAND && !lparam) {
         int command = LOWORD(wparam);
         if (command >= RotateLeft && command <= RegisterPreview) {
-            run_command(command);
+            run_command(command, NULL);
             return 0;
         }
         if (command == NativeShortcutSettings)

@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stddef.h>
 #include <stdint.h>
+#include "NavigationTrace.h"
 
 typedef struct {
     unsigned char header[12];
@@ -19,6 +20,11 @@ typedef struct {
 } Surface;
 typedef struct { int mode; WCHAR path[MAX_PATH]; } Preference;
 static Preference pref = {-1};
+static BOOL fastNavigation;
+BOOL FastCanvasFrame(BYTE *view);
+BOOL FastCanvasNavigationEnabled(void);
+BOOL CanvasDisplayComponent(void);
+BOOL FastNavigationComponent(void);
 static short cubic[256][4];
 static void initialize(void)
 {
@@ -29,6 +35,7 @@ static void initialize(void)
     else pref.path[0]=0;
     pref.mode = pref.path[0] ? GetPrivateProfileIntW(L"Canvas",L"Interpolation",1,pref.path) : 1;
     if ((unsigned)pref.mode>2) pref.mode=1;
+    fastNavigation = !pref.path[0] || GetPrivateProfileIntW(L"Canvas",L"FastNavigation",1,pref.path)!=0;
     for (int i=0;i<256;i++) {
         double f=i/256., f2=f*f, f3=f2*f;
         cubic[i][0]=(short)floor(0.5+256*(-0.5*f+f2-0.5*f3));
@@ -37,8 +44,19 @@ static void initialize(void)
         cubic[i][2]=256-cubic[i][0]-cubic[i][1]-cubic[i][3];
     }
 }
-__declspec(dllexport) int GetCanvasFilter(void) { initialize(); return pref.mode; }
-__declspec(dllexport) int SetCanvasFilter(int mode)
+int GetCanvasFilter(void) { initialize(); return pref.mode; }
+BOOL GetFastNavigation(void) { initialize(); return fastNavigation; }
+#ifdef RETAS_FAST
+BOOL FastCanvasNavigationEnabled(void) { return FastNavigationComponent() && GetFastNavigation(); }
+#endif
+BOOL SetFastNavigation(BOOL enabled)
+{
+    initialize();
+    if(!pref.path[0] || !WritePrivateProfileStringW(L"Canvas",L"FastNavigation",enabled?L"1":L"0",pref.path))return FALSE;
+    fastNavigation=enabled;
+    return TRUE;
+}
+int SetCanvasFilter(int mode)
 {
     initialize();
     if ((unsigned)mode>2 || !pref.path[0]) return 0;
@@ -97,15 +115,25 @@ static void mix(BYTE *out,const Surface *s,double x,double y,int mode)
         return;
     }
     int fx=clampi((int)((x-ix)*256),0,255), fy=clampi((int)((y-iy)*256),0,255);
-    short lx[2]={(short)(256-fx),(short)fx},ly[2]={(short)(256-fy),(short)fy};
-    int taps=mode==1?2:4;
-    const short *wx=mode==1?lx:cubic[fx],*wy=mode==1?ly:cubic[fy];
-    if (mode==2) {--ix;--iy;}
+    if (mode==1) {
+        int left=4*clampi(ix,0,s->width-1), right=4*clampi(ix+1,0,s->width-1);
+        const BYTE *top=s->bits+clampi(iy,0,s->height-1)*s->pitch;
+        const BYTE *bottom=s->bits+clampi(iy+1,0,s->height-1)*s->pitch;
+        // Keep eight fractional bits in each horizontal blend until the final round.
+        for (int c=0;c<4;c++) {
+            int a=top[left+c]*(256-fx)+top[right+c]*fx;
+            int b=bottom[left+c]*(256-fx)+bottom[right+c]*fx;
+            out[c]=(BYTE)((a*(256-fy)+b*fy+32768)>>16);
+        }
+        return;
+    }
+    const short *wx=cubic[fx],*wy=cubic[fy];
+    --ix;--iy;
     int columns[4],sums[4]={0};
-    for(int i=0;i<taps;i++)columns[i]=4*clampi(ix+i,0,s->width-1);
-    for(int j=0;j<taps;j++){
+    for(int i=0;i<4;i++)columns[i]=4*clampi(ix+i,0,s->width-1);
+    for(int j=0;j<4;j++){
         const BYTE *row=s->bits+clampi(iy+j,0,s->height-1)*s->pitch;
-        for(int i=0;i<taps;i++){
+        for(int i=0;i<4;i++){
             const BYTE *pixel=row+columns[i];
             int weight=wx[i]*wy[j];
             for(int c=0;c<4;c++)sums[c]+=weight*pixel[c];
@@ -122,6 +150,7 @@ static int read_region(BYTE *view,void *source,RECT bounds,Surface *out)
     out->cellsAcross = (w + CellSize - 1) >> CellShift;
     size_t cells = (size_t)out->cellsAcross * ((h + CellSize - 1) >> CellShift);
     out->bits=HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,bytes + cells * sizeof(ColorCell));
+    NAV_TRACE(NavAllocate, bytes + cells * sizeof(ColorCell), out->bits != NULL);
     if(!out->bits)return 0;
     out->cells = (ColorCell *)(out->bits + bytes);
     // The native 1:1 compositor only consumes one 256-pixel source block per call.
@@ -136,6 +165,7 @@ static int read_region(BYTE *view,void *source,RECT bounds,Surface *out)
         for(int x=bounds.left;x<bounds.right;){
             int right=min(bounds.right,(x|255)+1);
             RECT src={x,y,right,bottom},dstrect={x-bounds.left,y-bounds.top,right-bounds.left,bottom-bounds.top};
+            NAV_TRACE(NavReadBlock, x >> 8, y >> 8);
             if(!NativeTile(host()+0x62200,plain,&dst,source,&origin,&local,&src,&dstrect)) return 0;
             x=right;
         }
@@ -152,7 +182,7 @@ static PointD inverse(BYTE *v,double x,double y)
         (x*field(v,0x2e4)+y*field(v,0x2e8)+field(v,0x300))/scale-.5};
     return p;
 }
-static void smooth(BYTE *view,Bitmap *dst,void *source,const RECT *buffer,RECT *updated)
+static void smooth(BYTE *view,Bitmap *dst,void *source,const RECT *buffer,RECT *updated,int mode)
 {
     RECT area=*updated;
     int sw=field(source,12),sh=field(source,16);
@@ -174,10 +204,12 @@ static void smooth(BYTE *view,Bitmap *dst,void *source,const RECT *buffer,RECT *
               clampi((int)ceil(start.y+max(0.,dy)+max(0.,ey))+3,0,sh)};
     Surface s={0};
     if(read_region(view,source,src,&s)){
+        NAV_TRACE(NavReadDone, 0, 0);
         DWORD solid;
         BOOL uniform = solid_color(&s, 0, 0, s.width, s.height, &solid);
         if (!uniform)
-            classify_cells(&s, pref.mode);
+            classify_cells(&s, mode);
+        NAV_TRACE(NavScanDone, 0, 0);
         // Fully interior flat areas need only a row fill, even after rotation.
         BOOL interior = start.x + min(0.,dx) + min(0.,ex) > 0 &&
             start.y + min(0.,dy) + min(0.,ey) > 0 &&
@@ -196,7 +228,7 @@ static void smooth(BYTE *view,Bitmap *dst,void *source,const RECT *buffer,RECT *
                         if (uniform)
                             memcpy(d, &solid, sizeof(solid));
                         else
-                            mix(d,&s,px-src.left,py-src.top,pref.mode);
+                            mix(d,&s,px-src.left,py-src.top,mode);
                     }
                 }
             }
@@ -205,15 +237,9 @@ static void smooth(BYTE *view,Bitmap *dst,void *source,const RECT *buffer,RECT *
     }
     if(s.bits)HeapFree(GetProcessHeap(),0,s.bits);
 }
-int WINAPI CanvasScale(BYTE *view,Bitmap *dst,void *source,POINT *origin,RECT *buffer,RECT *src,RECT *out)
+void WINAPI FilterCompositedTile(BYTE *view,void *bitmap,void *source,RECT *buffer,RECT *out)
 {
-    int ok=NativeTile(host()+0x61060,view,dst,source,origin,buffer,src,out);
-    if(ok&&GetCanvasFilter())smooth(view,dst,source,buffer,out);
-    return ok;
-}
-int WINAPI CanvasRotate(BYTE *view,Bitmap *dst,void *source,POINT *origin,RECT *buffer,RECT *out,int block)
-{
-    int ok=NativeTile(host()+0x629d0,view,dst,source,origin,buffer,out,(void*)block);
-    if(ok&&GetCanvasFilter())smooth(view,dst,source,buffer,out);
-    return ok;
+    BOOL fast=FastCanvasNavigationEnabled();
+    int mode=CanvasDisplayComponent()?GetCanvasFilter():(fast?1:0);
+    if(mode && !(fast && FastCanvasFrame(view)))smooth(view,(Bitmap *)bitmap,source,buffer,out,mode);
 }

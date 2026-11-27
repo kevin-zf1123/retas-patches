@@ -50,4 +50,17 @@ BOOL canvas_is_active(HWND canvas);
 BOOL zoom_canvas(const MSG *message);
 void forget_zoom(HWND canvas);
 BOOL rotate_from_key(const MSG *message);
+BOOL RotateStylosCanvas(HWND canvas, int degrees, const MSG *key);
+#ifdef STYLOS_MANAGER_INPUT
+typedef void (*CanvasUpdate)(HWND canvas, unsigned char *view, POINT anchor, int value);
+void BeforeCanvasGetMessage(HWND filter, UINT low, UINT high);
+void FlushQueuedCanvasInput(void);
+void ForgetQueuedCanvasInput(HWND canvas);
+int CanvasInputValue(const MSG *input, HWND canvas, unsigned char *view, int offset);
+void ApplyOrQueueCanvasInput(const MSG *input, HWND canvas, unsigned char *view,
+    POINT anchor, int value, CanvasUpdate apply);
+BOOL FastCanvasNavigationEnabled(void);
+BOOL CanvasViewSupported(void);
+void NoteCanvasNavigation(void *view);
+#endif
 void prepare_rotation_buttons(HWND canvas);

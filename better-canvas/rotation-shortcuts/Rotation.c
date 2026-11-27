@@ -1,16 +1,38 @@
 #include "../CanvasView.h"
-BOOL RotateStylosCanvas(HWND canvas, int degrees)
+#include "../NavigationTrace.h"
+static void apply_angle(HWND canvas, unsigned char *view, POINT unused, int angle)
+{
+    if (*(int *)(view + RotationAngle) == angle) return;
+    ApplyStylosRotation(canvas_image + SetRotation, view, angle);
+    DisplayStylosRotation(canvas_image + SetRotationDisplay, view + RotationControl, angle);
+}
+
+BOOL RotateStylosCanvas(HWND canvas, int degrees, const MSG *input)
 {
     unsigned char *view = canvas_view(canvas);
     if (!view || !canvas_is_active(canvas))
         return FALSE;
-    int angle = (*(int *)(view + RotationAngle) % 360 + degrees) % 360;
+    POINT unused = {0,0};
+#ifdef STYLOS_MANAGER_INPUT
+    int previous = CanvasInputValue(input, canvas, view, RotationAngle);
+    NoteCanvasNavigation(view);
+#else
+    int previous = *(int *)(view + RotationAngle);
+#endif
+    if (input && (input->message == WM_KEYDOWN || input->message == WM_SYSKEYDOWN) && LOWORD(input->lParam))
+        degrees *= LOWORD(input->lParam);
+    int angle = (previous % 360 + degrees) % 360;
     if (angle < -180)
         angle += 360;
     if (angle > 180)
         angle -= 360;
-    ApplyStylosRotation(canvas_image + SetRotation, view, angle);
-    DisplayStylosRotation(canvas_image + SetRotationDisplay, view + RotationControl, angle);
+    NAV_TRACE(NavInput, WM_COMMAND, angle);
+#ifdef STYLOS_MANAGER_INPUT
+    ApplyOrQueueCanvasInput(input, canvas, view, unused, angle, apply_angle);
+#else
+    apply_angle(canvas, view, unused, angle);
+#endif
+    NAV_TRACE(NavInputDone, WM_COMMAND, angle);
     return TRUE;
 }
 
@@ -24,7 +46,7 @@ BOOL rotate_from_key(const MSG *message)
     HWND canvas = GetFocus();
     if (canvas != message->hwnd)
         return FALSE;
-    return RotateStylosCanvas(canvas, key == VK_OEM_MINUS ? -5 : 5);
+    return RotateStylosCanvas(canvas, key == VK_OEM_MINUS ? -5 : 5, message);
 }
 
 static void place_rotation_button(HWND canvas, HWND button, int x, int y, int width, int height, BOOL show)
@@ -65,20 +87,52 @@ static void layout_rotation_buttons(HWND canvas)
 static LRESULT CALLBACK canvas_message(HWND canvas, UINT message, WPARAM wparam, LPARAM lparam,
     UINT_PTR id, DWORD_PTR data)
 {
+#ifdef STYLOS_MANAGER_INPUT
+    if (message == WM_LBUTTONDOWN || message == WM_POINTERDOWN || message == WM_KILLFOCUS)
+        FlushQueuedCanvasInput();
+#endif
+#ifdef STYLOS_NAV_TRACE
+    if (message == WM_APP + 0x394) {
+        unsigned char *view = canvas_view(canvas);
+        if (!view || wparam < MinimumScale || wparam > MaximumScale) return 0;
+        ApplyStylosZoom(canvas_image + SetZoom, view, (double)wparam / ScaleUnits);
+        DisplayStylosZoom(canvas_image + SetZoomDisplay, view + ZoomControl,
+                          *(int *)(view + ZoomScale) * 100.0 / ScaleUnits);
+        return *(int *)(view + ZoomScale);
+    }
+    if (message == WM_LBUTTONDOWN) {
+        unsigned char *view = canvas_view(canvas);
+        if (view) {
+            double client[2] = {(short)LOWORD(lparam), (short)HIWORD(lparam)}, art[2];
+            MapStylosPoint(canvas_image + ClientToArtwork, view, art, client);
+            NAV_TRACE(NavFirstPoint, (int)(art[0]*256), (int)(art[1]*256));
+        }
+    }
+#endif
     if (message == WM_COMMAND && lparam && HIWORD(wparam) == BN_CLICKED) {
         int button = LOWORD(wparam);
         if ((button == RotateLeftButton || button == RotateRightButton)
             && (HWND)lparam == GetDlgItem(canvas, button)) {
-            if (RotateStylosCanvas(canvas, button == RotateLeftButton ? -5 : 5))
+            MSG input = {canvas, message, wparam, lparam};
+            if (RotateStylosCanvas(canvas, button == RotateLeftButton ? -5 : 5, &input))
                 SetFocus(canvas);
             return 0;
         }
     }
     if (message == WM_NCDESTROY) {
+#ifdef STYLOS_MANAGER_INPUT
+        ForgetQueuedCanvasInput(canvas);
+#endif
+#ifndef RETAS_ROTATION
         forget_zoom(canvas);
+#endif
         remove_subclass(canvas, canvas_message, id);
     }
+    if (message == WM_PAINT)
+        NAV_TRACE(NavPaint, 0, 0);
     LRESULT result = call_subclass(canvas, message, wparam, lparam);
+    if (message == WM_PAINT)
+        NAV_TRACE(NavPaintDone, 0, 0);
     if (message == WM_SIZE || message == WM_SHOWWINDOW || message == WM_PAINT)
         layout_rotation_buttons(canvas);
     return result;

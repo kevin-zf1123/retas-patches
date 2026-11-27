@@ -55,6 +55,97 @@ BOOL canvas_is_active(HWND canvas)
         && (HWND)SendMessageA(GetParent(canvas), WM_MDIGETACTIVE, 0, 0) == canvas;
 }
 
+#ifdef STYLOS_MANAGER_INPUT
+/* Only the manager's UI message pump batches updates. Windows still delivers
+   every key-up and all unrelated messages to the normal host dispatcher. */
+static _Thread_local struct {
+    MSG input;
+    HWND canvas;
+    unsigned char *view;
+    POINT anchor;
+    int value;
+    DWORD since;
+    CanvasUpdate apply;
+} queued;
+
+static BOOL continues_input(const MSG *input, const MSG *next)
+{
+    if (next->hwnd != input->hwnd) return FALSE;
+    if (input->message == WM_COMMAND) {
+        int button = LOWORD(next->wParam);
+        return next->message == WM_COMMAND && HIWORD(next->wParam) == BN_CLICKED
+            && (button == RotateLeftButton || button == RotateRightButton)
+            && next->lParam && (HWND)next->lParam == GetDlgItem(next->hwnd, button);
+    }
+    if (input->message == WM_MOUSEWHEEL)
+        return next->message == WM_MOUSEWHEEL && input->lParam == next->lParam
+            && LOWORD(input->wParam) == LOWORD(next->wParam)
+            && ((short)HIWORD(input->wParam) > 0) == ((short)HIWORD(next->wParam) > 0);
+    UINT up = input->message == WM_SYSKEYDOWN ? WM_SYSKEYUP : WM_KEYUP;
+    // A different down may reverse direction. Its binding is checked on actual
+    // dispatch; an unrelated shortcut flushes the view before it reaches Stylos.
+    return next->message == input->message || (next->message == up && next->wParam == input->wParam);
+}
+
+void FlushQueuedCanvasInput(void)
+{
+    CanvasUpdate apply = queued.apply;
+    if (!apply) return;
+    HWND canvas = queued.canvas;
+    unsigned char *view = queued.view;
+    POINT anchor = queued.anchor;
+    int value = queued.value;
+    queued.apply = NULL;
+    if (canvas_view(canvas) == view)
+        apply(canvas, view, anchor, value);
+}
+
+void BeforeCanvasGetMessage(HWND filter, UINT low, UINT high)
+{
+    if (!queued.apply) return;
+    MSG next;
+    if (filter || low || high || GetTickCount() - queued.since >= 16
+        || !PeekMessageA(&next, NULL, 0, 0, PM_NOREMOVE | PM_NOYIELD)
+        || !continues_input(&queued.input, &next))
+        FlushQueuedCanvasInput();
+}
+
+void ForgetQueuedCanvasInput(HWND canvas)
+{
+    if (queued.canvas == canvas) queued.apply = NULL;
+}
+
+int CanvasInputValue(const MSG *input, HWND canvas, unsigned char *view, int offset)
+{
+    if (queued.apply) {
+        if (input && queued.canvas == canvas && queued.view == view && continues_input(&queued.input, input))
+            return queued.value;
+        FlushQueuedCanvasInput();
+    }
+    return *(int *)(view + offset);
+}
+
+void ApplyOrQueueCanvasInput(const MSG *input, HWND canvas, unsigned char *view,
+    POINT anchor, int value, CanvasUpdate apply)
+{
+    MSG next;
+    if (input && FastCanvasNavigationEnabled()
+        && PeekMessageA(&next, NULL, 0, 0, PM_NOREMOVE | PM_NOYIELD)
+        && continues_input(input, &next)) {
+        if (!queued.apply) queued.since = GetTickCount();
+        queued.canvas = canvas;
+        queued.view = view;
+        queued.input = *input;
+        queued.anchor = anchor;
+        queued.value = value;
+        queued.apply = apply;
+        return;
+    }
+    queued.apply = NULL;
+    apply(canvas, view, anchor, value);
+}
+#endif
+
 static void initialize_view(void)
 {
     static BOOL checked;
@@ -74,22 +165,47 @@ static void initialize_view(void)
     }
 }
 
+#ifdef STYLOS_MANAGER_INPUT
+BOOL CanvasViewSupported(void)
+{
+    initialize_view();
+    return canvas_image != NULL;
+}
+#endif
+
 void DispatchCanvasInput(MSG *message, BOOL wheel, BOOL rotate)
 {
+#ifdef STYLOS_MANAGER_INPUT
+    if (queued.apply && !continues_input(&queued.input, message))
+        FlushQueuedCanvasInput();
+    else if (queued.apply && (message->message == WM_KEYUP || message->message == WM_SYSKEYUP))
+        BeforeCanvasGetMessage(NULL, 0, 0);
+#endif
     if(handling_input || (!wheel && !rotate))return;
     initialize_view();
     if(!canvas_image)return;
     handling_input=TRUE;
+#ifndef RETAS_WHEEL_ONLY
         if (rotate && !native_shortcuts && message->hwnd)
             native_shortcuts = InstallStylosShortcuts(canvas_image, message->hwnd);
-        if ((wheel && message->message == WM_MOUSEWHEEL && zoom_canvas(message))
-            || (rotate && native_shortcuts && (message->message == WM_KEYDOWN || message->message == WM_SYSKEYDOWN)
+        if ((rotate && native_shortcuts && (message->message == WM_KEYDOWN || message->message == WM_SYSKEYDOWN)
                 && DispatchStylosShortcut(message))
             || (rotate && !native_shortcuts && message->message == WM_KEYDOWN && rotate_from_key(message)))
             message->message = WM_NULL;
         if (rotate && message->message == WM_PAINT) {
             prepare_rotation_buttons(message->hwnd);
         }
+#endif
+#ifndef RETAS_ROTATION
+        if(wheel && message->message==WM_MOUSEWHEEL && zoom_canvas(message))message->message=WM_NULL;
+#endif
+#ifdef STYLOS_MANAGER_INPUT
+    // A formerly bound key may now belong to the host (focus, modifiers or
+    // shortcut settings changed). Commit earlier movement before forwarding it.
+    if (queued.apply && (message->message == WM_KEYDOWN || message->message == WM_SYSKEYDOWN
+        || message->message == WM_MOUSEWHEEL))
+        FlushQueuedCanvasInput();
+#endif
     handling_input=FALSE;
 }
 

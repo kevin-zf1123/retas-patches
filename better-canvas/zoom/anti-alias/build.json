@@ -1,0 +1,13 @@
+{
+  "package": "Stylos-Better-Canvas-Display-x86.zip",
+  "sources": [
+    "better-canvas/filter-plugin.c",
+    "better-canvas/CanvasFilter.c",
+    "retas-devkit/NativeTile.S",
+    "better-canvas/rotation-shortcuts/RotationCalls.S"
+  ],
+  "defines": [
+    "RETAS_PLUGIN_MODULE",
+    "STYLOS_MANAGER_INPUT"
+  ]
+}

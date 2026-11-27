@@ -1,5 +1,7 @@
-"""Build the Stylos packages using the shared offline devkit."""
+"""Build the self-contained canvas display package."""
+import subprocess
+import sys
 from pathlib import Path
-import runpy
-if __name__ == "__main__":
-    runpy.run_path(str(Path(__file__).resolve().parents[3]/"plugin-manager/stylos/build_host_packages.py"),run_name="__main__")
+if __name__=="__main__":
+    tool=Path(__file__).resolve().parents[3]/"tools/build_plugins.py"
+    subprocess.run([sys.executable,tool,"--only","anti-alias",*sys.argv[1:]],check=True)

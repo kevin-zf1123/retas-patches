@@ -1,8 +1,8 @@
 {
-  "schema": 2,
+  "schema": 3,
   "host": "stylos-2.6.0-x86",
   "id": "mousewheel-zoom",
-  "sites": [],
-  "segments": [],
-  "version": "0.1.0"
+  "name": "指针中心滚轮缩放",
+  "version": "0.2.0",
+  "module": "module.dll"
 }

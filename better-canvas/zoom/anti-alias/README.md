@@ -6,4 +6,6 @@
 
 在同一管理器里可以停用、重新启用或卸载画布显示。
 
-构建入口是本目录 build.py。需要 Zig 0.13.0、Python 3、pefile、LIEF、本机 .NET Framework csc 和中割 v0.1 参考安装器。完整发行构建所需的基线及参数见 plugin-manager/stylos/README.md。
+安装[快速导航组件](../../fast-navigation/README.md)后，可在 **环境设置 → 插件 → 快速导航** 开关交互预览。停稳后的插值方式由“画布显示”控制。[性能数据与测试方法](../../bench/RESULTS.md)
+
+在仓库根目录运行 CMake 的 `anti-alias` 目标，或使用 `python tools/build_plugins.py --only anti-alias --out packages/0.2.0`。组件 ZIP 包含绘制模块和设置页。

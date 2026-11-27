@@ -1,0 +1,13 @@
+{
+  "package": "Stylos-Mousewheel-Zoom-x86.zip",
+  "sources": [
+    "better-canvas/CanvasInput.c",
+    "better-canvas/input-plugin.c",
+    "better-canvas/zoom/mousewheel-zoom/MousewheelZoom.c",
+    "better-canvas/zoom/mousewheel-zoom/ZoomCalls.S"
+  ],
+  "defines": [
+    "STYLOS_MANAGER_INPUT",
+    "RETAS_WHEEL_ONLY"
+  ]
+}

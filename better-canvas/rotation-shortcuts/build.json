@@ -1,0 +1,17 @@
+{
+  "package": "Stylos-Rotation-Shortcuts-x86.zip",
+  "sources": [
+    "better-canvas/CanvasInput.c",
+    "better-canvas/input-plugin.c",
+    "better-canvas/rotation-shortcuts/Rotation.c",
+    "better-canvas/rotation-shortcuts/StylosShortcuts.c",
+    "better-canvas/rotation-shortcuts/RotationCalls.S"
+  ],
+  "defines": [
+    "STYLOS_MANAGER_INPUT",
+    "RETAS_ROTATION"
+  ],
+  "traceSources": [
+    "better-canvas/zoom/mousewheel-zoom/ZoomCalls.S"
+  ]
+}
