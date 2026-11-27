@@ -1,97 +1,11 @@
 {
-  "schema": 2,
+  "schema": 3,
   "host": "stylos-2.6.0-x86",
   "id": "motion-check",
-  "sites": [
-    {
-      "rva": "0x3d227",
-      "size": 10
-    },
-    {
-      "rva": "0x42be0",
-      "size": 7
-    },
-    {
-      "rva": "0xf3fcd",
-      "size": 5
-    },
-    {
-      "rva": "0xf5f01",
-      "size": 10
-    },
-    {
-      "rva": "0xf5f29",
-      "size": 8
-    },
-    {
-      "rva": "0xf5fbd",
-      "size": 14
-    },
-    {
-      "rva": "0x236830",
-      "size": 7
-    },
-    {
-      "rva": "0x2368b0",
-      "size": 6
-    },
-    {
-      "rva": "0x236950",
-      "size": 7
-    },
-    {
-      "rva": "0x2369c2",
-      "size": 6
-    },
-    {
-      "rva": "0x239b30",
-      "size": 7
-    },
-    {
-      "rva": "0x239bb0",
-      "size": 6
-    },
-    {
-      "rva": "0x27e900",
-      "size": 5
-    },
-    {
-      "rva": "0x27ef25",
-      "size": 6
-    },
-    {
-      "rva": "0x27efd9",
-      "size": 6
-    },
-    {
-      "rva": "0x27f04c",
-      "size": 9
-    },
-    {
-      "rva": "0x27f11f",
-      "size": 7
-    },
-    {
-      "rva": "0x5ce440",
-      "size": 1503
-    },
-    {
-      "rva": "0x5ceb00",
-      "size": 366
-    },
-    {
-      "rva": "0x5cee80",
-      "size": 12
-    }
-  ],
-  "segments": [
-    ".motion"
-  ],
-  "workerSites": [
-    {
-      "rva": "0x5d3370",
-      "size": 36
-    }
-  ],
-  "version": "0.1.1"
+  "name": "运动检查与后台预渲染",
+  "version": "0.2.0",
+  "order": 20,
+  "files": [
+    "MotionRender.dll"
+  ]
 }

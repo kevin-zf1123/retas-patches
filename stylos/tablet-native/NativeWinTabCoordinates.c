@@ -25,7 +25,6 @@ typedef BOOL (WINAPI *QueueSize)(HANDLE, int);
 typedef int (WINAPI *ReadPackets)(HANDLE, int, void *);
 typedef BOOL (WINAPI *ContextSettings)(HANDLE, LogContextA *);
 
-void InstallStylosLinearZoom(void);
 
 static HMODULE self;
 static HMODULE driver;
@@ -100,7 +99,6 @@ static void normalize_screen_rectangle(LogContextA *settings)
 
 EXPORT UINT WINAPI WTInfoA(UINT category, UINT index, void *output)
 {
-    InstallStylosLinearZoom();
     if (!connect_driver())
         return 0;
     UINT size = native_info(category, index, output);

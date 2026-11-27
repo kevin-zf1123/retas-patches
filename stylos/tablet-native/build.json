@@ -1,0 +1,5 @@
+{
+  "package": "Stylos-Native-Tablet-x86.zip",
+  "runtimeBuild": "Build.ps1",
+  "usesTcc": true
+}

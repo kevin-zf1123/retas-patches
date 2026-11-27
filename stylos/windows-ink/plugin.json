@@ -1,8 +1,12 @@
 {
-  "schema": 2,
+  "schema": 3,
   "host": "stylos-2.6.0-x86",
   "id": "windows-ink",
-  "sites": [],
-  "segments": [],
-  "version": "0.1.0"
+  "name": "Windows Ink 笔输入",
+  "version": "0.2.0",
+  "exclusive": "tablet-input",
+  "files": [
+    "wintab32.dll",
+    "StylosInk.dll"
+  ]
 }

@@ -3,11 +3,7 @@ $ErrorActionPreference = 'Stop'
 $out = $OutputDirectory
 New-Item -ItemType Directory -Path $out -Force | Out-Null
 $module = Join-Path $out 'wintab32.dll'
-$canvas=(Resolve-Path (Join-Path $PSScriptRoot '../../better-canvas')).Path
-$wheel=Join-Path $canvas 'zoom/mousewheel-zoom'
-$rotation=Join-Path $canvas 'rotation-shortcuts'
-& $Tcc -shared -Wall -o $module "$PSScriptRoot/NativeWinTabCoordinates.c" "$canvas/CanvasInput.c" `
-    "$wheel/MousewheelZoom.c" "$wheel/ZoomCalls.S" "$rotation/Rotation.c" "$rotation/StylosShortcuts.c" "$rotation/RotationCalls.S" -luser32 -lgdi32
+& $Tcc -shared -Wall -o $module "$PSScriptRoot/NativeWinTabCoordinates.c" -luser32 -lgdi32
 if ($LASTEXITCODE -ne 0) { throw 'Native build failed.' }
 
 $bytes = [IO.File]::ReadAllBytes($module)

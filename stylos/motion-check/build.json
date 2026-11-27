@@ -1,0 +1,5 @@
+{
+  "package": "Stylos-Motion-Check-x86.zip",
+  "runtimeBuild": "Build.ps1",
+  "imageBuilder": "build_image.py"
+}
