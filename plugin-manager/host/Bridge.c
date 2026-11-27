@@ -2,29 +2,31 @@
 #include <windows.h>
 #include <commctrl.h>
 #include <wchar.h>
+#include "modules.h"
 enum { Manager=0x6e63, Preferences=40048 };
 static HWND frame;
 static HMODULE host;
 BOOL RetasDispatch(HWND,UINT,WPARAM,LPARAM,BOOL,LRESULT *);
 static WCHAR path[MAX_PATH];
-static BOOL exists, registered, checked, rotation, wheel;
-void DispatchCanvasInput(MSG *,BOOL,BOOL);
-__declspec(dllexport) BOOL CanvasInputOwned(void){
-    if(checked)return exists;
-    checked=TRUE;
-    WCHAR filename[MAX_PATH];
-    DWORD n=GetModuleFileNameW(NULL,filename,MAX_PATH);
-    WCHAR *leaf=n && n<MAX_PATH?wcsrchr(filename,L'\\'):NULL;
-    if(!leaf || leaf-filename+40>=MAX_PATH)return FALSE;
-    wcscpy(leaf+1,L"StylosPluginManager.exe");wcscpy(path,filename);
-    if(GetFileAttributesW(filename)==INVALID_FILE_ATTRIBUTES)return FALSE;
-    wcscpy(leaf+1,L".stylos-plugins\\input.ini");
-    if(GetFileAttributesW(filename)==INVALID_FILE_ATTRIBUTES)return FALSE;
-    rotation=GetPrivateProfileIntW(L"Input",L"Rotation",0,filename)!=0;
-    wheel=GetPrivateProfileIntW(L"Input",L"Wheel",0,filename)!=0;
-    exists=TRUE;return TRUE;
-}
+static BOOL registered;
+__declspec(dllexport) BOOL CanvasInputOwned(void){return TRUE;}
 static HMENU currentMenu;
+static void label_native_plugin_path(HWND dialog){
+    if(!GetDlgItem(dialog,1762) || !GetDlgItem(dialog,1763))return;
+    for(HWND page=NULL;(page=FindWindowExW(dialog,page,L"#32770",NULL))!=NULL;){
+        // Native preferences template 411: directory edit and browse button.
+        if(!GetDlgItem(page,1045) || !GetDlgItem(page,1049))continue;
+        HWND group=FindWindowExW(page,NULL,L"Button",NULL);
+        if(group && (GetWindowLongW(group,GWL_STYLE)&BS_TYPEMASK)==BS_GROUPBOX){
+            WCHAR caption[64];
+            GetWindowTextW(group,caption,ARRAYSIZE(caption));
+            if(!lstrcmpW(caption,L"插件文件夹位置(&P)") || !lstrcmpW(caption,L"插件路径(&P)"))
+                SetWindowTextW(group,L"原版插件路径(&P)");
+            else if(!lstrcmpW(caption,L"插件路径"))
+                SetWindowTextW(group,L"原版插件路径");
+        }
+    }
+}
 static int find_item(HMENU menu,UINT command,HMENU *owner){
     for(int i=0;i<GetMenuItemCount(menu);i++){
         if(GetMenuItemID(menu,i)==command){*owner=menu;return i;}
@@ -47,10 +49,12 @@ static void launch(HWND w){
     else MessageBoxW(w,L"请重新安装 Stylos 插件管理器。",L"插件管理器",MB_ICONERROR);
 }
 static LRESULT CALLBACK frame_proc(HWND w,UINT msg,WPARAM wp,LPARAM lp,UINT_PTR id,DWORD_PTR data){
+    if(msg==WM_ENTERIDLE && wp==MSGF_DIALOGBOX)
+        label_native_plugin_path((HWND)lp);
     LRESULT api;
-    if(RetasDispatch(w,msg,wp,lp,exists,&api))return api;
-    if(exists && msg==WM_COMMAND && !lp && LOWORD(wp)==Manager){launch(w);return 0;}
-    if(exists && (msg==WM_INITMENU || (msg==WM_COMMAND && LOWORD(wp)==40049)))menu(w);
+    if(RetasDispatch(w,msg,wp,lp,TRUE,&api))return api;
+    if(msg==WM_COMMAND && !lp && LOWORD(wp)==Manager){launch(w);return 0;}
+    if((msg==WM_INITMENU || (msg==WM_COMMAND && LOWORD(wp)==40049)))menu(w);
     if(msg==WM_NCDESTROY){RemoveWindowSubclass(w,frame_proc,id);frame=NULL;currentMenu=NULL;}
     LRESULT result=DefSubclassProc(w,msg,wp,lp);
     if(msg==WM_INITMENUPOPUP)EnableMenuItem((HMENU)wp,Manager,MF_BYCOMMAND|MF_ENABLED);
@@ -121,18 +125,22 @@ static void load_binding(void){
 BOOL WINAPI PluginManagerMessage(MSG *message,HWND w,UINT lo,UINT hi){
     if(!host){
         host=GetModuleHandleW(NULL);
-        CanvasInputOwned();
+        DWORD n=GetModuleFileNameW(NULL,path,MAX_PATH);
+        WCHAR *leaf=n && n<MAX_PATH?wcsrchr(path,L'\\'):NULL;
+        if(leaf && leaf-path+24<MAX_PATH)wcscpy(leaf+1,L"StylosPluginManager.exe");
+        else path[0]=0;
+        LoadModules();
     }
-    if(exists){register_command();load_binding();}
+    register_command();load_binding();
+    for(LoadedPlugin *p=modules;p;p=p->next)if(p->callbacks.before_message)p->callbacks.before_message(w,lo,hi);
     BOOL result=GetMessageA(message,w,lo,hi);
     if(result<=0)return result;
     if(!frame && message->hwnd){
         HWND candidate=GetAncestor(message->hwnd,GA_ROOTOWNER);WCHAR klass[32];
         if(GetClassNameW(candidate,klass,32) && !lstrcmpW(klass,L"DrawFrameWnd") && GetMenu(candidate) &&
-           SetWindowSubclass(candidate,frame_proc,Manager,0)){frame=candidate;if(exists)menu(frame);}
+           SetWindowSubclass(candidate,frame_proc,Manager,0)){frame=candidate;menu(frame);}
     }
-    if(!exists)return result;
-    DispatchCanvasInput(message,wheel,rotation);
+    for(LoadedPlugin *p=modules;p;p=p->next)if(p->callbacks.message)p->callbacks.message(message);
     if(manager_key(message)){PostMessageW(frame,WM_COMMAND,Manager,0);message->message=WM_NULL;}
     return result;
 }

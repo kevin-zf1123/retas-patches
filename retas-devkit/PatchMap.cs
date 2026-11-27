@@ -29,7 +29,35 @@ namespace Retas.DevKit {
         int nextRva, nextRaw, nextHeader, added;
 
         public PatchRegion[] Regions { get { return regions.ToArray(); } }
+        internal PatchRegion[] ImageSections { get { return sections.ToArray(); } }
         internal int Length { get { return nextRaw; } }
+
+        internal void ValidateLinkedHeaders(PatchMap next, IEnumerable<string> movable) {
+            if (opt!=next.opt || table!=next.table || headers!=next.headers || next.count<count ||
+                sectionAlignment!=next.sectionAlignment || fileAlignment!=next.fileAlignment)
+                throw new InvalidDataException("Incompatible linked image headers");
+            var allowed=new bool[table+count*40];
+            Action<int,int> allow=(at,n)=>{for(int i=at;i<at+n;i++)allowed[i]=true;};
+            // DOS linker stamp, section count, code/data totals, image size, checksum
+            // and import directory may change between verified native linked variants.
+            allow(64,opt-24-64);allow(opt-18,2);allow(opt+4,12);allow(opt+56,4);allow(opt+64,4);allow(opt+104,8);
+            var linkerSections=new HashSet<string>(movable,StringComparer.Ordinal);
+            for(int i=0;i<count;i++){
+                var section=sections[i];
+                var newSection=next.sections.SingleOrDefault(s=>s.region==section.region);
+                if(newSection==null)throw new InvalidDataException("Linked image lost "+section.region);
+                int oldPos=table+40*i, newPos=table+40*next.sections.IndexOf(newSection);
+                for(int j=0;j<40;j++){
+                    if(basis[oldPos+j]==next.basis[newPos+j])continue;
+                    if(linkerSections.Contains(section.region) && j>=8 && j<24)continue;
+                    if(section.region==".text" && j>=8 && j<12 && I32(next.basis,newPos+8)<=newSection.size)continue;
+                    throw new InvalidDataException("Unexpected section header edit: "+section.region);
+                }
+                allow(oldPos,40);
+            }
+            for(int i=0;i<allowed.Length;i++)if(!allowed[i] && basis[i]!=next.basis[i])
+                throw new InvalidDataException("Unexpected PE header edit: "+i.ToString("x"));
+        }
 
         static int Align(int value, int alignment) {
             if (alignment <= 0 || (alignment & (alignment - 1)) != 0)
@@ -80,6 +108,13 @@ namespace Retas.DevKit {
 
         public PatchRegion Allocate(string owner, string name, int size) {
             return Allocate(owner, name, size, size);
+        }
+
+        public void ClaimSection(string owner,string name) {
+            var s=sections.SingleOrDefault(part=>part.region==name);
+            if(s==null)throw new InvalidDataException("Missing host section "+name);
+            Reserve(owner,s.rva,s.size);
+            var claim=regions[regions.Count-1];claim.region=name;claim.address=0;
         }
 
         public PatchRegion Allocate(string owner, string name, int virtualSize, int rawSize) {

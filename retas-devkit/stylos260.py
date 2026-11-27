@@ -1,5 +1,6 @@
 """Validated GUI and canvas entry points for the x86 Stylos 2.6.0 host."""
-from patch_layout import named_sites
+import json
+from pathlib import Path
 import hashlib
 import struct
 import lief
@@ -36,8 +37,8 @@ def link_canvas(source,target,mode="canvas"):
     data=source.read_bytes()
     require(digest(data).hex() in HOSTS, 'Unsupported input: '+str(source))
     with pefile.PE(data=data) as before:old=imports(before)
-    bridge = named_sites('plugin-manager/stylos/plugin.json')
-    canvas = named_sites('better-canvas/zoom/anti-alias/plugin.json')
+    adapter=json.loads(Path(__file__).with_name('host260.json').read_bytes())
+    bridge=canvas={s['name']:int(s['rva'],0) for s in adapter['sites']}
     render=[(NAMES[0],canvas['scale'],'8bcbc645fc0ae8f197ffff','53c645fc0aff15'),
             (NAMES[1],canvas['rotate'],'8bcbe877a6ffff','53ff15')]
     changes=render[:] if mode in ('canvas','previous') else []

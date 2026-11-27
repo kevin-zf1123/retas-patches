@@ -1,34 +1,64 @@
-# RETAS DevKit · Stylos 2.6.0 x86
+# RETAS DevKit 0.2
 
-DevKit 把已验证的宿主入口转换成有版本的接口，供其他本机工具使用。插件包的发现、安装、卸载和启停属于 [插件管理器](../plugin-manager/stylos/)。本版适配器作为 StylosCanvasFilter.dll 的一部分发布。
+使用本 SDK 可以独立开发 Stylos 2.6.0 x86 插件。交付物是一个 ZIP，最终用户在 **Stylos 插件管理器 → 从安装包安装…** 选择它并应用。管理器启动时列出本机实际安装的包，安装新 ID 和替换同 ID 的包都使用这个入口。
 
-**入口注册表**见 entries.json。ABI v1 通过同一 Windows 桌面上的注册消息 RETAS.Stylos.DevKit.v1 通信，目标为 DrawFrameWnd。wParam 为固定入口 ID，lParam 为该入口定义的整数参数。已有 ID 的语义保持稳定。增加入口须同步注册表、retas.h 和 StylosApi.c；不兼容的变更使用新的 ABI 版本和消息名。
+## 从示例构建一个包
 
-Python 客户端只依赖标准库；也可从 C/C++ 包含 retas.h 并使用 SendMessageTimeoutW。先查询版本和能力；请求设置页或管理器前，请确保对应插件已启用且主窗口可交互。可指定窗口句柄以选择特定实例。
+在 Windows 上解压 SDK，将 Zig 0.13 或兼容的 x86 C 编译器加入 PATH。以下 PowerShell 命令在 SDK 根目录运行。可以更改示例清单的 `id`、`name` 和 `version`，然后单独分发输出的 ZIP。
 
 ```powershell
-python retas-devkit/retas_client.py version
-python retas-devkit/retas_client.py zoom
-python retas-devkit/retas_client.py preferences --page midpoint
-python retas-devkit/retas_client.py manager
+New-Item -ItemType Directory payload
+Copy-Item examples/view-info/plugin.json payload/plugin.json
+zig cc -target x86-windows-gnu -O2 -shared -s -I. examples/view-info/view-info.c module.def -o ViewInfo.dll -luser32
+Copy-Item ViewInfo.dll payload/ViewInfo.dll
+python pack.py payload ViewInfo.zip
 ```
 
-**宿主适配**见 stylos260.py。固定版本的绘制、设置对话框初始化、主消息循环接入点在此校验和链接。运行期查询在宿主 UI 线程处理，不跨进程传递指针。管理器从公开接口请求切换设置页；包哈希、状态与冲突由管理器的 registry.json 和每安装目录的状态文件维护。
+打开管理器，导入 `ViewInfo.zip` 并点击“应用更改”。启动 Stylos，在“环境设置 → 插件 → 当前视图”可看到示例 DLL 从宿主查询的倍率和角度。管理器里的“打开设置”会直接定位该页。停用或卸载也通过管理器执行；应用文件更改前需要退出 Stylos。[示例源码](examples/view-info/view-info.c)
 
-## 离线补丁地址接口
+## 包清单
 
-管理器在 Stylos 关闭后为每个目标 EXE 单独建立 `PatchMap`。接口用于安装、启停和卸载阶段。运行中的 Stylos 继续使用上面的消息 ABI v1。[C# 接口](PatchMap.cs) · [构建端校验](patch_layout.py)
+```json
+{
+  "schema": 3,
+  "host": "stylos-2.6.0-x86",
+  "id": "sample-view-info",
+  "name": "视图信息示例",
+  "version": "1.0.0",
+  "module": "ViewInfo.dll",
+  "settings": "当前视图"
+}
+```
 
-| 接口 | 地址语义 |
-|---|---|
-| `Reserve(owner, rva, size)` | 声明宿主中已有的半开区间。RVA 从镜像基址起算，管理器通过目标 PE 的节表换算文件偏移，两个所有者的区间重叠会报错。 |
-| `Allocate(owner, name, size)` | 分配命名补丁节。节内逻辑地址从 0 开始，管理器按目标 PE 的 SectionAlignment 和 FileAlignment 分别对齐 RVA 和文件位置。也可分别传入 virtualSize 和 rawSize。 |
-| `Resolve(owner, region, address, size)` | 查询本插件声明范围内的一段地址，返回实际 RVA、文件偏移和长度。原有入口使用区域名 `host`，新节使用声明的节名。 |
+- `id` 以小写字母开头，后续可用小写字母、数字和连字符，最多 64 字符。版本格式为 `major.minor.patch`。同 ID 包更新实现和清单，备份保持原包字节。
+- `module` 是包根目录的 x86 DLL。模块安装到该 ID 的私有目录，通过进程内 ABI 提供功能。模块、原生文件或地址布局均可作为包的实现。
+- `settings` 是环境设置页名称。宿主在 UI 线程上调用 `create_page`，插件返回初始隐藏的子窗口。点击外层“确定”时调用 `accept_page`；取消时直接销毁页，插件可把未提交值保存在控件里。
+- `order` 决定应用布局及分发回调的顺序，默认 0；相同顺序按 ID 排列。`conflicts` 是互斥 ID 数组，`exclusive` 是互斥组名。启用组内某一插件时，管理器停用同组的其他插件。
+- 特定宿主需要从安装根目录加载的文件可以用 `"files":["Example.dll"]` 声明，源文件放在 ZIP 的 `files/Example.dll`。文件名冲突或已有外部文件会在应用前报告。
+- 私有资源和依赖 DLL 使用 `assets` 列出相对路径，例如 `["图标/工具.png","MyDependency.dll"]`。将它们放在 ZIP 的 `payload/` 下，管理器会按目录结构部署到模块旁边，并在停用或卸载时撤下。
+- 可选 `shortcuts` 数组声明原生命令及默认绑定，例如 `{"command":"EXAMPLE_ACTION","modifiers":3,"candidates":"PJM"}`。位 1、2、4 分别表示 Ctrl、Shift、Alt。插件负责注册及处理命令。
 
-每个插件在源码目录的 `plugin.json` 中通过 `sites` 声明固定 RVA 和字节长度，通过 `segments` 声明新节。动检另外使用 `workerSites` 描述 worker 自身的入口。通过 DLL、输入配置或共享消息入口工作的插件可以声明空数组。管理器自己的消息入口、共享设置入口和导入节也有同样的声明。[管理器声明](../plugin-manager/stylos/plugin.json) · [动检声明](../stylos/motion-check/plugin.json)
+## 进程内扩展
 
-以中割为例，插件申请 `.ltalign`，节内地址从 0 开始。它在 `fixups` 中声明两个宿主调用点和 18 个宿主引用。每个修正项指定所在区域、逻辑地址、参考节、连续 32 位字段个数和方向。写入值等于规范化字段值加上 `factor × 参考节实际 RVA`。动检启停会改变中割节的位置，同一份中割代码可按新位置链接。[中割声明](../stylos/rotation-scale-inbetween/plugin.json)
+DLL 通过未修饰导出名 `RetasPluginInit` 提供 x86 stdcall 入口。宿主在第一次进入主消息循环时加载启用模块，传入带大小、版本的接口表。返回 FALSE 会放弃本次初始化。模块的窗口回调和服务指针在本次 Stylos 进程中有效，启停在下次启动时生效。[ABI 头文件](plugin.h)
 
-添加或更改补丁时，将清单登记在管理器注册表，在 `sectionOrder` 中指定新增节的分配次序，并为支持的基线生成参考镜像。构建器校验每次写入都有声明、固定区间无冲突、分配位置与参考链接匹配。安装时管理器按启用状态选取各插件的片段，从已识别的基线重新分配和绑定，并在写盘前核对最终 SHA-256。旧安装和历史变体可通过已有差分恢复到对应基线。[注册表](../plugin-manager/stylos/registry.json)
+- `before_message`、`message` 分别在读取消息前和取到消息后调用；处理了输入的插件可把消息设为 `WM_NULL`。
+- `canvas_tile` 在经验证的缩放或旋转绘制入口完成原生绘制后调用一次。参数是 Stylos 2.6 的视图、目标位图、源、缓冲区和更新矩形，仅在回调期间有效。
+- `provide` 和 `service` 允许模块发布、查询带版本的服务名，具体接口由提供方定义。可在消息或绘制回调中查询服务，此时其他模块已完成初始化。
+- 外部工具仍可使用注册窗口消息 `RETAS.Stylos.DevKit.v1` 查询视图。管理器按插件 ID 定位设置页，参数为 `RegisterWindowMessageW(L"RETAS.Stylos.Settings.<id>")`；旧版数值别名保留给相应页面。[消息入口](entries.json)
 
-应用后的 `.stylos-plugins/layout.json` 按镜像和插件记录分配。每行的 `owner`、`region`、`address` 标识逻辑地址，`rva`、`fileOffset`、`size` 给出本次落点和长度，单位均为字节。查询时应核对文件中的 `host` 与当前 Stylos.exe 的 SHA-256。
+## 声明地址与所有权
+
+需要修改宿主镜像的包可包含 `layout.json`。单纯使用模块回调的插件可以省略它。管理器从校验过的基线重建启用组合，并在写盘前核对位置和所有权。下面是格式示意；地址和预期字节应由插件作者在支持的宿主版本中验证。
+
+```json
+{
+  "edits": [{"rva": 123456, "expected": "data/original.bin", "data": "data/replacement.bin"}],
+  "sections": [{"name": ".sample", "virtualSize": 4096, "flags": 1073741888, "data": "data/section.bin"}],
+  "relocations": [{"region": ".sample", "address": 0, "target": ".sample", "addend": 16}]
+}
+```
+
+固定修改需要等长的预期字节和替换数据。新节由管理器分配，重定位把本插件目标区域的 RVA 写入本插件拥有的四字节位置。`host` 使用宿主 RVA，其他区域使用节内偏移。重复区域、未声明位置、前置字节不匹配都会终止本次应用。[地址分配器](PatchMap.cs)
+
+需要维护旧版链接镜像的包还可提供 `variants`。它按当前主镜像的 SHA-256 选择差分，`images` 中的 `Stylos.exe` 基于当前主镜像，工作进程基于原始主程序。插件用 `claims`、`workerClaims`、`ownedSections` 标出其占用。管理器校验差分输入和输出摘要。安装记录与实际分配写入安装目录的 `.stylos-plugins`，卸载一个插件时从基线重建剩余组合。

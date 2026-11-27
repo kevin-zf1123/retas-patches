@@ -20,11 +20,11 @@ internal sealed class Candidate {
 
 internal sealed partial class Engine {
     const string ManagerName="StylosPluginManager.exe";
-    internal string ManagerPath {get{return paths[ManagerName];}}
+    internal string ManagerPath {get{return Resolve(ManagerName);}}
     string ResultFile {get{return Path.Combine(Store,"maintenance-result.txt");}}
     string OwnedManager(){
         string hash=Digest(ManagerPath);
-        if(hash=="-" || !File.Exists(paths["manager-hash"]) || hash!=File.ReadAllText(paths["manager-hash"]))
+        if(hash=="-" || !File.Exists(Resolve(".stylos-plugins/manager.sha256")) || hash!=File.ReadAllText(Resolve(".stylos-plugins/manager.sha256")))
             throw new IOException("无法验证本目录中的管理器，请先用发行包完成安装。");
         return hash;
     }
@@ -33,7 +33,7 @@ internal sealed partial class Engine {
         const string url="https://github.com/kevin-zf1123/retas-patches/releases/latest/download/Stylos-Plugin-Manager-x86.zip";
         ServicePointManager.SecurityProtocol|=SecurityProtocolType.Tls12;
         var request=(HttpWebRequest)WebRequest.Create(url);
-        request.UserAgent="Stylos-Plugin-Manager/"+Catalog.managerVersion;
+        request.UserAgent="Stylos-Plugin-Manager/"+Engine.Version;
         request.Timeout=15000;request.ReadWriteTimeout=15000;
         string temp=Path.Combine(Path.GetTempPath(),"stylos-update-"+Guid.NewGuid().ToString("N")+".zip");
         try{
@@ -57,18 +57,13 @@ internal sealed partial class Engine {
             throw;
         }finally{if(File.Exists(temp))File.Delete(temp);}
     }
-    internal static bool IsManagerPackage(string path){
-        if(new FileInfo(path).Length>32*1024*1024)return false;
-        using(var file=File.OpenRead(path))using(var zip=new ZipArchive(file,ZipArchiveMode.Read))
-            return zip.GetEntry("update.json")!=null || zip.GetEntry(ManagerName)!=null;
-    }
     public Candidate CheckUpdate(string path){
         if(new FileInfo(path).Length>32*1024*1024)throw new IOException("更新包过大。");
         using(var file=File.OpenRead(path))using(var zip=new ZipArchive(file,ZipArchiveMode.Read)){
             byte[] raw=ZipMember(zip,"update.json",8192);
             var info=Json.Deserialize<UpdateManifest>(Encoding.UTF8.GetString(raw));
             Version next;
-            if(info==null || info.product!="retas.stylos.manager.x86" || !Version.TryParse(info.version,out next) ||
+            if(info==null || info.product!="retas.stylos.manager.x86.v2" || !System.Version.TryParse(info.version,out next) ||
                 next.Build<0 || next.Revision>=0)throw new InvalidDataException("管理器更新包的版本无效。");
             var payload=ZipMember(zip,ManagerName,24*1024*1024);
             var installed=FileVersionInfo.GetVersionInfo(ManagerPath);
@@ -87,26 +82,22 @@ internal sealed partial class Engine {
             if(package!=null){
                 var update=CheckUpdate(package);
                 desired[ManagerName]=update.executable;
-                desired["manager-hash"]=Encoding.ASCII.GetBytes(Hash(update.executable));
+                desired[".stylos-plugins/manager.sha256"]=Encoding.ASCII.GetBytes(Hash(update.executable));
                 CommitFiles(desired);
                 return "管理器已更新到 "+update.version+"。可重新打开管理器。";
             }
-            byte[] old=File.ReadAllBytes(exe);
-            HostState host;
-            if(!Catalog.hosts.TryGetValue(Hash(old),out host))throw new IOException("主程序已被其他工具修改。");
-            byte[] backup=MakeBackup();
+            var state=Current();
+            foreach(var kv in state.managed){
+                if(Digest(Resolve(kv.Key))!=kv.Value)throw new IOException("受管文件已改变："+kv.Key);
+                desired[kv.Key]=null;
+            }
+            byte[] backup=MakeBackup(null);
             string archive=Path.Combine(Store,"backups","plugins-"+Hash(backup).Substring(0,16)+".zip");
             Atomic(archive,backup);
-            desired["exe"]=Delta(old,host.family);
-            var selection=Read();
-            if(selection.managerShortcut!=0 && File.Exists(profile)){
-                desired["profile"]=ShortcutBinding.RemoveManager(File.ReadAllBytes(profile),(char)selection.managerShortcut);
-            }
-            foreach(string key in new[]{"StylosCanvasFilter.dll","MotionRender.dll","StylosRenderA.exe","StylosRenderB.exe",
-                      "wintab32.dll","StylosInk.dll","Stylos-Wacom.cmd"})
-                if(Catalog.known[key].Contains(Digest(paths[key])))desired[key]=null;
-            foreach(var p in Catalog.plugins)desired["package-"+p.id]=null;
-            foreach(string key in new[]{"state","input","layout","manager-hash",ManagerName})desired[key]=null;
+            desired[ExeName]=Original(state);
+            if(state.managerShortcut!=0 && File.Exists(profile))
+                desired["@profile"]=ShortcutBinding.RemoveManager(Bytes(profile),(char)state.managerShortcut);
+            desired[StateName]=null;desired[".stylos-plugins/manager.sha256"]=null;desired[ManagerName]=null;
             CommitFiles(desired);
             return "已卸载管理器和受管插件。插件备份："+archive;
         }

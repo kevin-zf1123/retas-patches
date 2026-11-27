@@ -1,0 +1,5 @@
+{
+  "schema": 3, "host": "stylos-2.6.0-x86",
+  "id": "sample-view-info", "name": "视图信息示例", "version": "1.0.0",
+  "module": "ViewInfo.dll", "settings": "当前视图"
+}

@@ -61,8 +61,17 @@
 !/better-canvas/
 !/better-canvas/zoom/
 !/better-canvas/CanvasView.h
+!/better-canvas/NavigationTrace.h
+!/better-canvas/bench/
+!/better-canvas/bench/*.c
+!/better-canvas/bench/*.py
+!/better-canvas/bench/*.md
+!/better-canvas/bench/results.csv
 !/better-canvas/CanvasInput.c
 !/better-canvas/README.md
+!/better-canvas/fast-navigation/
+!/better-canvas/fast-navigation/README.md
+!/better-canvas/fast-navigation/plugin.json
 !/better-canvas/zoom/mousewheel-zoom/
 !/better-canvas/zoom/mousewheel-zoom/*.c
 !/better-canvas/zoom/mousewheel-zoom/*.S
@@ -86,35 +95,14 @@
 
 # Stylos plugin lifecycle, manager UI and package registration
 !/plugin-manager/
-!/plugin-manager/stylos/
-!/plugin-manager/stylos/Bridge.c
-!/plugin-manager/stylos/Engine.cs
-!/plugin-manager/stylos/Manager.cs
-!/plugin-manager/stylos/registry.json
-!/plugin-manager/stylos/build_manager.py
-!/plugin-manager/stylos/component_package.py
-!/plugin-manager/stylos/build_host_packages.py
-!/plugin-manager/stylos/README.md
-!/plugin-manager/stylos/MIDPOINT.md
 
 # Offline address declarations and linker
-!/retas-devkit/patch_layout.py
 !/retas-devkit/PatchMap.cs
-!/retas-devkit/test_patch_layout.py
-!/plugin-manager/stylos/plugin.json
 !/better-canvas/**/plugin.json
 !/stylos/*/plugin.json
-!/plugin-manager/stylos/PatchCatalog.cs
-!/plugin-manager/stylos/verify_layout.ps1
 !/retas-devkit/ManagePlugin.ps1
 
 # Manager release metadata and maintenance commands
-!/plugin-manager/stylos/Maintenance.cs
-!/plugin-manager/stylos/Backup.cs
-!/plugin-manager/stylos/releases/
-!/plugin-manager/stylos/releases/v0.zip
-!/plugin-manager/stylos/releases/motion-check-0.1.0.zip
-!/plugin-manager/stylos/verify_maintenance.ps1
 
 !/docs/
 !/docs/manuals/
@@ -122,3 +110,43 @@
 
 !/stylos/motion-check/verify_startup.c
 !/stylos/motion-check/verify_startup.py
+
+# Open package manager, public plugin ABI and independently built payloads
+!/plugin-manager/README.md
+!/plugin-manager/build.py
+!/plugin-manager/core/
+!/plugin-manager/core/*.cs
+!/plugin-manager/host/
+!/plugin-manager/host/*.c
+!/plugin-manager/host/*.h
+!/plugin-manager/host/*.def
+!/tools/
+!/tools/build_plugins.py
+!/tests/
+!/tests/plugins/
+!/tests/plugins/*.py
+!/retas-devkit/*.py
+!/retas-devkit/*.cs
+!/retas-devkit/*.h
+!/retas-devkit/*.def
+!/retas-devkit/*.S
+!/retas-devkit/host260.json
+!/retas-devkit/examples/
+!/retas-devkit/examples/view-info/
+!/retas-devkit/examples/view-info/*.c
+!/retas-devkit/examples/view-info/plugin.json
+!/better-canvas/*.c
+!/better-canvas/*.h
+!/better-canvas/**/build.json
+!/stylos/*/build.json
+!/better-canvas/**/host-layout.json
+!/stylos/*/host-layout.json
+!/stylos/rotation-scale-inbetween/manager-guide.md
+
+!/better-canvas/fast-navigation/*.c
+!/stylos/rotation-scale-inbetween/Pages.rc
+
+!/tools/linked_images.py
+!/stylos/*/build_image.py
+!/retas-devkit/reference-hashes.json
+!/stylos/rotation-scale-inbetween/precision.S

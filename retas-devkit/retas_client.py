@@ -7,7 +7,7 @@ from pathlib import Path
 import json
 REGISTRY = json.loads(Path(__file__).with_name("entries.json").read_text(encoding="utf8"))
 ENTRIES = {entry["name"]: entry["id"] for entry in REGISTRY["entries"]}
-PAGES = {"general": 0, "canvas": 1, "midpoint": 2}
+PAGES = {"general": 0, "canvas": 1, "midpoint": 2, "fast-navigation": 3}
 
 def request(entry, arg=0, hwnd=None):
     u = ctypes.WinDLL("user32", use_last_error=True)
@@ -26,7 +26,9 @@ def request(entry, arg=0, hwnd=None):
 if __name__ == "__main__":
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument("entry",choices=ENTRIES)
-    parser.add_argument("--page",choices=PAGES,default="general")
+    parser.add_argument("--page",default="general",help="Plugin ID or legacy page alias")
     args=parser.parse_args()
     if request("version")!=1:raise SystemExit("Stylos DevKit v1 not registered")
-    print(request(args.entry,PAGES[args.page] if args.entry=="preferences" else 0))
+    page=PAGES.get(args.page)
+    if page is None:page=ctypes.windll.user32.RegisterWindowMessageW("RETAS.Stylos.Settings."+args.page)
+    print(request(args.entry,page if args.entry=="preferences" else 0))
