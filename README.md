@@ -75,4 +75,6 @@ Stylos を終了し、使用中の `Stylos.exe` をバックアップしてく�
 
 ## 许可证 / License / ライセンス
 
+[贡献指南 / Contributing / 開発に参加する](CONTRIBUTING.md) · [贡献者 / Contributors / 貢献者](CONTRIBUTORS.md)
+
 [BSD 3-Clause](LICENSE) · 补丁源码与安装器 / Patch source and installer / パッチのソースコードとインストーラ

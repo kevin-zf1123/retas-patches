@@ -3,6 +3,12 @@
 !/LICENSE
 !/README.md
 !/CMakeLists.txt
+!/CONTRIBUTING.md
+!/CONTRIBUTORS.md
+!/.clang-format
+!/CPPLINT.cfg
+!/.github/
+!/.github/pull_request_template.md
 
 # Stylos inbetween alignment
 !/stylos/
